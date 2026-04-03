@@ -1,0 +1,1046 @@
+import { useState, useEffect } from "react";
+
+// ── Fonts ────────────────────────────────────────────────────────────────────
+const fontStyle = document.createElement("style");
+fontStyle.textContent = `@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');`;
+document.head.appendChild(fontStyle);
+
+// ── Design Tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg: "#F5F0E8",
+  surface: "#FFFFFF",
+  text: "#1A1A1A",
+  soft: "#6E6760",
+  muted: "#A8A09A",
+  green: "#2B5F47",
+  greenLight: "#EAF0EC",
+  greenMid: "#4A8A6A",
+  border: "#DDD6CB",
+  amber: "#B87B2A",
+  amberLight: "#FDF3E0",
+  correct: "#2B5F47",
+  wrong: "#B04040",
+  wrongLight: "#FAEAEA",
+  correctLight: "#EAF4EE",
+};
+
+const serif = "'Lora', Georgia, serif";
+const sans = "'DM Sans', system-ui, sans-serif";
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+const LANGUAGES = [
+  { code: "el", name: "Greek", flag: "🇬🇷", available: true },
+  { code: "es", name: "Spanish", flag: "🇪🇸", available: false },
+  { code: "fr", name: "French", flag: "🇫🇷", available: false },
+  { code: "tr", name: "Turkish", flag: "🇹🇷", available: false },
+  { code: "ja", name: "Japanese", flag: "🇯🇵", available: false },
+  { code: "pt", name: "Portuguese", flag: "🇧🇷", available: false },
+];
+
+const LEVELS = [
+  { code: "A1", desc: "You know almost nothing yet. That's fine." },
+  { code: "A2", desc: "You can handle the basics in slow, simple conversations." },
+  { code: "B1", desc: "Everyday conversations with some effort." },
+  { code: "B2", desc: "Comfortable with most topics. Gaps remain." },
+  { code: "C1", desc: "Near-fluent. Nuance and speed are the challenge." },
+  { code: "C2", desc: "Indistinguishable from a native in most contexts." },
+];
+
+const CHAPTERS = [
+  { id: 1, theme: "Greetings & Introductions", grammar: "To Be / Personal Pronouns", done: 15, total: 15 },
+  { id: 2, theme: "Numbers & Time", grammar: "Cardinal Numbers, Clock", done: 8, total: 15 },
+  { id: 3, theme: "Food & Drink", grammar: "Indefinite Article, Basic Verbs", done: 0, total: 15 },
+  { id: 4, theme: "Family", grammar: "Possessives, Noun Gender", done: 0, total: 15 },
+  { id: 5, theme: "Getting Around", grammar: "Imperatives, Prepositions", done: 0, total: 15 },
+  { id: 6, theme: "Shopping", grammar: "Accusative Case Basics", done: 0, total: 15 },
+];
+
+const SENTENCES = [
+  {
+    id: 1,
+    before: "Θέλω να",
+    answer: "πιω",
+    after: "καφέ.",
+    translation: "I want to drink coffee.",
+    grammarLabel: "Present Subjunctive",
+    grammarShort: "Follows θέλω να (I want to). The verb πίνω shifts to its subjunctive form πιω.",
+    grammarFull:
+      "The present subjunctive (υποτακτική) follows particles like να, and phrases like θέλω να, μπορώ να, and πρέπει να. It uses a different verb stem and endings than the indicative. It expresses intention, desire, obligation, or possibility. Mastering it early unlocks a large range of everyday Greek sentences.",
+  },
+  {
+    id: 2,
+    before: "Η Μαρία",
+    answer: "μένει",
+    after: "στην Αθήνα.",
+    translation: "Maria lives in Athens.",
+    grammarLabel: "Present Simple",
+    grammarShort: "Third-person singular of μένω (to live). Greek verbs agree with their subject in person and number.",
+    grammarFull:
+      "The present simple (ενεστώτας) describes habitual actions, states, and general truths. Greek verbs conjugate across six persons. The ending changes depending on voice and conjugation class. Regular -ω verbs like μένω follow a predictable pattern that is worth memorizing early.",
+  },
+  {
+    id: 3,
+    before: "Χθες",
+    answer: "έμεινα",
+    after: "στο σπίτι.",
+    translation: "Yesterday I stayed at home.",
+    grammarLabel: "Simple Past (Aorist)",
+    grammarShort: "Χθες (yesterday) signals a completed past action. Έμεινα is the first-person aorist of μένω.",
+    grammarFull:
+      "The aorist (αόριστος) describes a completed action, usually at a specific point in the past. It uses an augment (ε-) and its own set of endings. Irregular verbs like μένω have unpredictable aorist stems that must be memorized. Time words like χθες (yesterday) and πριν (before/ago) are strong signals for aorist.",
+  },
+  {
+    id: 4,
+    before: "Αυτό το βιβλίο είναι",
+    answer: "ενδιαφέρον",
+    after: ".",
+    translation: "This book is interesting.",
+    grammarLabel: "Predicate Adjective",
+    grammarShort: "Adjective agrees with the noun it describes. Βιβλίο is neuter, so the adjective takes neuter form.",
+    grammarFull:
+      "Greek adjectives agree with their noun in gender, number, and case. When used predicatively (after a form of to be), they still must agree. Βιβλίο is neuter singular nominative, so ενδιαφέρον takes its neuter singular form. This agreement system extends across all cases and is central to Greek grammar.",
+  },
+];
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function Btn({ children, onClick, variant = "primary", disabled = false, small = false, style: extra = {} }) {
+  const base = {
+    fontFamily: sans,
+    fontWeight: 500,
+    cursor: disabled ? "not-allowed" : "pointer",
+    border: "none",
+    borderRadius: 8,
+    transition: "background 0.15s, opacity 0.15s",
+    padding: small ? "0.5rem 1rem" : "0.75rem 1.5rem",
+    fontSize: small ? "0.82rem" : "0.92rem",
+    opacity: disabled ? 0.5 : 1,
+    ...extra,
+  };
+  const variants = {
+    primary: { background: C.green, color: "#fff" },
+    ghost: { background: "none", border: `1px solid ${C.border}`, color: C.soft },
+    danger: { background: "none", border: "none", color: C.muted },
+  };
+  return (
+    <button onClick={disabled ? undefined : onClick} style={{ ...base, ...variants[variant] }}>
+      {children}
+    </button>
+  );
+}
+
+// ── WordSpan – double-click to save ──────────────────────────────────────────
+function WordSpan({ text, onSave }) {
+  return (
+    <>
+      {text.split(/(\s+)/).map((tok, i) => {
+        if (!tok.trim()) return <span key={i}>{tok}</span>;
+        return (
+          <span
+            key={i}
+            onDoubleClick={() => onSave(tok.replace(/[.,!?;:«»]/g, ""))}
+            title="Double-click to save to flashcards"
+            style={{ cursor: "default", borderRadius: 3, padding: "1px 0", transition: "background 0.12s" }}
+            onMouseEnter={e => (e.target.style.background = C.amberLight)}
+            onMouseLeave={e => (e.target.style.background = "transparent")}
+          >
+            {tok}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+// ── Screens ───────────────────────────────────────────────────────────────────
+
+function Welcome({ onStart }) {
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: sans, padding: "2rem" }}>
+      <div style={{ maxWidth: 460, textAlign: "center" }}>
+        <div style={{ fontFamily: serif, fontSize: "3.25rem", fontWeight: 600, color: C.green, letterSpacing: "-0.02em", marginBottom: "0.4rem" }}>
+          Glōssa
+        </div>
+        <div style={{ fontSize: "1rem", color: C.soft, marginBottom: "2.5rem", letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, fontSize: "0.8rem" }}>
+          Real levels. Real grammar. No streaks, no nonsense.
+        </div>
+        <p style={{ color: C.soft, lineHeight: 1.8, fontSize: "0.95rem", marginBottom: "3rem" }}>
+          Built for learners who want structured progress. Every sentence teaches something specific. Every word you save becomes a flashcard with context you'll actually remember.
+        </p>
+        <Btn onClick={onStart}>Get Started</Btn>
+      </div>
+    </div>
+  );
+}
+
+function LanguagePicker({ onSelect }) {
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: sans, padding: "3rem 2rem" }}>
+      <div style={{ maxWidth: 540, margin: "0 auto" }}>
+        <div style={{ fontFamily: serif, fontSize: "1.75rem", fontWeight: 600, color: C.text, marginBottom: "0.35rem" }}>Choose a language</div>
+        <div style={{ color: C.soft, fontSize: "0.875rem", marginBottom: "2.5rem" }}>More languages arriving soon.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.7rem" }}>
+          {LANGUAGES.map(l => (
+            <button
+              key={l.code}
+              onClick={() => l.available && onSelect(l)}
+              style={{
+                background: C.surface,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 12,
+                padding: "1.1rem 1.25rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.85rem",
+                cursor: l.available ? "pointer" : "not-allowed",
+                opacity: l.available ? 1 : 0.48,
+                fontFamily: sans,
+                textAlign: "left",
+                transition: "border-color 0.15s, box-shadow 0.15s",
+              }}
+              onMouseEnter={e => { if (l.available) { e.currentTarget.style.borderColor = C.green; e.currentTarget.style.boxShadow = "0 2px 12px rgba(43,95,71,0.1)"; } }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <span style={{ fontSize: "1.9rem" }}>{l.flag}</span>
+              <div>
+                <div style={{ fontWeight: 500, color: C.text, fontSize: "0.95rem" }}>{l.name}</div>
+                {!l.available && <div style={{ fontSize: "0.72rem", color: C.muted, marginTop: "0.1rem" }}>Coming soon</div>}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LevelPicker({ onSelect }) {
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: sans, padding: "3rem 2rem" }}>
+      <div style={{ maxWidth: 540, margin: "0 auto" }}>
+        <div style={{ fontFamily: serif, fontSize: "1.75rem", fontWeight: 600, color: C.text, marginBottom: "0.35rem" }}>What's your level?</div>
+        <div style={{ color: C.soft, fontSize: "0.875rem", marginBottom: "2.5rem" }}>You can change this any time. When in doubt, go one lower.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {LEVELS.map(l => (
+            <button
+              key={l.code}
+              onClick={() => onSelect(l)}
+              style={{
+                background: C.surface,
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 10,
+                padding: "1rem 1.25rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "1rem",
+                cursor: "pointer",
+                fontFamily: sans,
+                textAlign: "left",
+                transition: "border-color 0.15s, box-shadow 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; e.currentTarget.style.boxShadow = "0 2px 12px rgba(43,95,71,0.1)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <div style={{
+                background: C.greenLight,
+                color: C.green,
+                fontWeight: 700,
+                fontSize: "0.875rem",
+                borderRadius: 6,
+                padding: "0.25rem 0.65rem",
+                minWidth: 36,
+                textAlign: "center",
+                letterSpacing: "0.02em",
+              }}>
+                {l.code}
+              </div>
+              <div style={{ color: C.soft, fontSize: "0.9rem", lineHeight: 1.5 }}>{l.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChapterMap({ chapters, level, lang, onSelect }) {
+  return (
+    <div style={{ maxWidth: 580, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
+      <div style={{ marginBottom: "2rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.3rem" }}>
+          <span style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, color: C.text }}>{lang?.name}</span>
+          <span style={{
+            background: C.greenLight,
+            color: C.green,
+            fontWeight: 700,
+            fontSize: "0.82rem",
+            padding: "0.2rem 0.65rem",
+            borderRadius: 6,
+            letterSpacing: "0.03em",
+          }}>
+            {level?.code}
+          </span>
+        </div>
+        <div style={{ color: C.soft, fontSize: "0.875rem" }}>{level?.desc}</div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+        {chapters.map((ch, i) => {
+          const pct = ch.total ? ch.done / ch.total : 0;
+          const complete = pct >= 1;
+          const inProgress = pct > 0 && pct < 1;
+          return (
+            <button
+              key={ch.id}
+              onClick={() => onSelect(ch)}
+              style={{
+                background: complete ? C.greenLight : C.surface,
+                border: `1.5px solid ${complete ? "#B0CEBC" : C.border}`,
+                borderRadius: 12,
+                padding: "1.1rem 1.25rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "1rem",
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: sans,
+                transition: "border-color 0.15s, box-shadow 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; e.currentTarget.style.boxShadow = "0 3px 14px rgba(43,95,71,0.1)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = complete ? "#B0CEBC" : C.border; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <div style={{ fontWeight: 600, color: C.muted, fontSize: "0.78rem", minWidth: 32, flexShrink: 0 }}>
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 500, color: C.text, fontSize: "0.95rem", marginBottom: "0.15rem" }}>{ch.theme}</div>
+                <div style={{ fontSize: "0.78rem", color: C.soft, marginBottom: "0.6rem" }}>{ch.grammar}</div>
+                <div style={{ background: C.border, borderRadius: 4, height: 3, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${pct * 100}%`,
+                    background: C.green,
+                    borderRadius: 4,
+                    transition: "width 0.4s ease",
+                  }} />
+                </div>
+              </div>
+              <div style={{
+                fontSize: "0.78rem",
+                fontWeight: complete ? 600 : 400,
+                color: complete ? C.green : C.muted,
+                flexShrink: 0,
+              }}>
+                {complete ? "✓ Done" : inProgress ? `${ch.done}/${ch.total}` : `0/${ch.total}`}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, correct, exact, typo, prefixMatch, inputColor, showTrans, setShowTrans, onSubmit, onNext, onSaveWord, onGrammarDoubleClick, showHint, onDismissHint }) {
+  const pct = total > 0 ? (sIdx / total) : 0;
+  return (
+    <div style={{ maxWidth: 820, margin: "0 auto", minHeight: "calc(100vh - 62px)", display: "flex", flexDirection: "column" }}>
+
+      {/* Top progress bar */}
+      <div style={{ height: 3, background: C.border, width: "100%", flexShrink: 0 }}>
+        <div style={{
+          height: "100%",
+          width: `${pct * 100}%`,
+          background: C.green,
+          borderRadius: "0 2px 2px 0",
+          transition: "width 0.4s ease",
+        }} />
+      </div>
+
+      <div style={{ padding: "2.5rem 1.5rem", flex: 1, display: "flex", flexDirection: "column" }}>
+
+      {/* Chapter header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2.75rem" }}>
+        <div>
+          <div style={{ fontFamily: serif, fontWeight: 600, color: C.text, fontSize: "1.05rem", marginBottom: "0.2rem" }}>
+            {chapter?.theme}
+          </div>
+          <div style={{ fontSize: "0.78rem", color: C.soft }}>{chapter?.grammar}</div>
+        </div>
+        <div style={{ fontSize: "0.82rem", color: C.muted, flexShrink: 0, paddingTop: "0.2rem" }}>
+          {sIdx + 1} / {total}
+        </div>
+      </div>
+
+      {/* Two-column layout */}
+      <div style={{ display: "flex", gap: "2.5rem", alignItems: "flex-start", flex: 1 }}>
+
+        {/* Left: Sentence + interaction */}
+        <div style={{ flex: 1 }}>
+
+          {/* Sentence */}
+          <div style={{
+            fontFamily: serif,
+            fontSize: "1.75rem",
+            lineHeight: 1.7,
+            color: C.text,
+            marginBottom: "1.75rem",
+            letterSpacing: "-0.01em",
+          }}>
+            <WordSpan text={s.before + " "} onSave={onSaveWord} />
+            {submitted ? (
+              <span style={{
+                color: correct ? C.correct : C.wrong,
+                borderBottom: `2.5px solid ${correct ? C.correct : C.wrong}`,
+                fontStyle: "italic",
+                padding: "0 4px",
+              }}>
+                {s.answer}
+              </span>
+            ) : (
+              <span style={{
+                display: "inline-block",
+                borderBottom: `2.5px dashed ${C.green}`,
+                minWidth: "5rem",
+                marginBottom: "-2px",
+                position: "relative",
+              }}>
+                <span style={{
+                  position: "absolute",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  top: "-0.1em",
+                  fontSize: "0.55em",
+                  color: C.greenMid,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontFamily: "sans-serif",
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                }}>fill in</span>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              </span>
+            )}
+            {" "}<WordSpan text={s.after} onSave={onSaveWord} />
+          </div>
+
+          {/* Translation toggle */}
+          <div style={{ marginBottom: "1.5rem" }}>
+            <button
+              onClick={() => setShowTrans(v => !v)}
+              style={{
+                background: "none",
+                border: `1px solid ${C.border}`,
+                borderRadius: 6,
+                padding: "0.38rem 0.85rem",
+                fontSize: "0.78rem",
+                color: C.soft,
+                cursor: "pointer",
+                fontFamily: sans,
+                transition: "border-color 0.15s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = C.green)}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
+            >
+              {showTrans ? "Hide translation" : "Show translation"}
+            </button>
+            {showTrans && (
+              <div style={{ color: C.soft, fontStyle: "italic", fontSize: "0.9rem", marginTop: "0.65rem", lineHeight: 1.6 }}>
+                {s.translation}
+              </div>
+            )}
+          </div>
+
+          {/* Input or result */}
+          {!submitted ? (
+            <div style={{ display: "flex", gap: "0.65rem" }}>
+              <input
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && input.trim()) onSubmit(); }}
+                placeholder="Type the missing word..."
+                autoFocus
+                style={{
+                  flex: 1,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "0.75rem 1rem",
+                  fontSize: "1rem",
+                  fontFamily: sans,
+                  outline: "none",
+                  background: C.surface,
+                  color: inputColor,
+                  fontWeight: prefixMatch ? 600 : 400,
+                  transition: "border-color 0.15s, color 0.1s",
+                }}
+                onFocus={e => (e.target.style.borderColor = C.green)}
+                onBlur={e => (e.target.style.borderColor = C.border)}
+              />
+              <button
+                onClick={onSubmit}
+                disabled={!input.trim()}
+                style={{
+                  background: input.trim() ? C.green : C.border,
+                  color: input.trim() ? "#fff" : C.muted,
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "0.75rem 1.5rem",
+                  fontSize: "0.9rem",
+                  cursor: input.trim() ? "pointer" : "not-allowed",
+                  fontFamily: sans,
+                  fontWeight: 500,
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                }}
+              >
+                Check
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{
+                background: correct ? C.correctLight : C.wrongLight,
+                border: `1.5px solid ${correct ? C.correct : C.wrong}`,
+                borderRadius: 8,
+                padding: "0.85rem 1rem",
+                color: correct ? C.correct : C.wrong,
+                fontWeight: 500,
+                marginBottom: "1rem",
+                fontSize: "0.9rem",
+              }}>
+                {exact && "✓ Correct"}
+                {typo && (
+                  <span>
+                    ✓ Close enough!{" "}
+                    <span style={{ fontWeight: 400 }}>
+                      The exact form is{" "}
+                      <span style={{ fontStyle: "italic", fontWeight: 600 }}>{s.answer}</span>
+                    </span>
+                  </span>
+                )}
+                {!correct && (
+                  <div>
+                    <div style={{ marginBottom: "0.5rem" }}>✗ The answer is: <span style={{ fontStyle: "italic", fontWeight: 600 }}>{s.answer}</span></div>
+                    <div style={{ fontWeight: 400, fontSize: "0.85rem", opacity: 0.85, lineHeight: 1.5 }}>{s.grammarShort}</div>
+                  </div>
+                )}
+              </div>
+              <Btn onClick={onNext}>Next →</Btn>
+            </div>
+          )}
+
+          {/* First-use double-click hint */}
+          {showHint && (
+            <div style={{
+              marginTop: "1.75rem",
+              background: C.amberLight,
+              border: `1px solid #E0C080`,
+              borderRadius: 10,
+              padding: "0.75rem 1rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "1rem",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                <span style={{ fontSize: "1.1rem" }}>💡</span>
+                <span style={{ fontSize: "0.82rem", color: C.amber, lineHeight: 1.5 }}>
+                  <strong>Tip:</strong> Double-click any word in the sentence to save it to your flashcard deck.
+                </span>
+              </div>
+              <button
+                onClick={onDismissHint}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: C.amber,
+                  cursor: "pointer",
+                  fontSize: "0.9rem",
+                  padding: "0.2rem",
+                  flexShrink: 0,
+                  opacity: 0.7,
+                }}
+              >✕</button>
+            </div>
+          )}
+        </div>
+
+      </div>{/* end padding wrapper */}
+
+        {/* Right: Grammar Panel */}
+        <div
+          style={{
+            width: 210,
+            flexShrink: 0,
+            background: C.greenLight,
+            border: `1px solid #C0D8CA`,
+            borderRadius: 14,
+            padding: "1.35rem 1.25rem",
+            position: "sticky",
+            top: "1.5rem",
+          }}
+        >
+          <div style={{
+            fontSize: "0.68rem",
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            color: C.greenMid,
+            textTransform: "uppercase",
+            marginBottom: "0.6rem",
+          }}>
+            Grammar
+          </div>
+
+          {/* Grammar label - double-click for modal */}
+          <div
+            onDoubleClick={onGrammarDoubleClick}
+            title="Double-click for full overview"
+            style={{
+              fontFamily: serif,
+              fontWeight: 600,
+              fontSize: "1.05rem",
+              color: C.text,
+              marginBottom: "0.85rem",
+              lineHeight: 1.35,
+              cursor: "default",
+              borderBottom: `1px dashed #B0CEBC`,
+              paddingBottom: "0.85rem",
+            }}
+          >
+            {s.grammarLabel}
+          </div>
+
+          <div style={{
+            fontSize: "0.825rem",
+            color: "#3C6B53",
+            lineHeight: 1.65,
+            marginBottom: "1.25rem",
+          }}>
+            {s.grammarShort}
+          </div>
+
+          <button
+            onDoubleClick={onGrammarDoubleClick}
+            onClick={onGrammarDoubleClick}
+            style={{
+              background: "none",
+              border: `1px solid #B0CEBC`,
+              borderRadius: 6,
+              padding: "0.38rem 0.75rem",
+              fontSize: "0.72rem",
+              color: C.greenMid,
+              cursor: "pointer",
+              fontFamily: sans,
+              width: "100%",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(43,95,71,0.08)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none")}
+          >
+            Full overview →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FlashcardDeck({ cards, onDelete }) {
+  const [mode, setMode] = useState("deck"); // deck | review
+  const [rIdx, setRIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+
+  if (cards.length === 0) {
+    return (
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center", fontFamily: sans }}>
+        <div style={{ fontFamily: serif, fontSize: "1.4rem", color: C.text, marginBottom: "0.75rem" }}>Your deck is empty</div>
+        <div style={{ color: C.soft, fontSize: "0.9rem", lineHeight: 1.7 }}>
+          Double-click any word in a sentence to save it here. Each card keeps the original sentence as context.
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "review") {
+    const card = cards[rIdx];
+    return (
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "2.5rem 1.5rem", fontFamily: sans }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2.5rem" }}>
+          <button
+            onClick={() => { setMode("deck"); setRIdx(0); setFlipped(false); }}
+            style={{ background: "none", border: "none", color: C.soft, cursor: "pointer", fontFamily: sans, fontSize: "0.875rem" }}
+          >
+            ← Back to deck
+          </button>
+          <span style={{ color: C.muted, fontSize: "0.82rem" }}>{rIdx + 1} / {cards.length}</span>
+        </div>
+
+        {/* Card */}
+        <div
+          onClick={() => setFlipped(v => !v)}
+          style={{
+            background: C.surface,
+            border: `1.5px solid ${C.border}`,
+            borderRadius: 16,
+            padding: "3.5rem 2rem",
+            textAlign: "center",
+            cursor: "pointer",
+            minHeight: 220,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+            marginBottom: "1.5rem",
+            transition: "box-shadow 0.15s",
+            userSelect: "none",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.1)")}
+          onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.06)")}
+        >
+          {!flipped ? (
+            <>
+              <div style={{ fontFamily: serif, fontSize: "2.25rem", color: C.text, marginBottom: "0.5rem" }}>{card.word}</div>
+              <div style={{ fontSize: "0.75rem", color: C.muted }}>Click to reveal</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: "0.8rem", color: C.soft, marginBottom: "0.75rem" }}>{card.translation}</div>
+              <div style={{ fontFamily: serif, fontSize: "1rem", color: C.soft, fontStyle: "italic", lineHeight: 1.6 }}>{card.context}</div>
+              {card.chapter && (
+                <div style={{ fontSize: "0.72rem", color: C.muted, marginTop: "0.75rem" }}>{card.chapter}</div>
+              )}
+            </>
+          )}
+        </div>
+
+        {flipped && (
+          <div style={{ display: "flex", gap: "0.7rem" }}>
+            {[
+              { label: "Again", color: C.wrong },
+              { label: "Hard", color: C.amber },
+              { label: "Good", color: C.green, primary: true },
+            ].map(({ label, color, primary }) => (
+              <button
+                key={label}
+                onClick={() => { setFlipped(false); setRIdx(r => (r + 1) % cards.length); }}
+                style={{
+                  flex: 1,
+                  padding: "0.7rem",
+                  borderRadius: 8,
+                  border: `1.5px solid ${primary ? C.green : C.border}`,
+                  background: primary ? C.green : C.surface,
+                  color: primary ? "#fff" : C.text,
+                  fontFamily: sans,
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  transition: "opacity 0.15s",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Deck list view
+  return (
+    <div style={{ maxWidth: 520, margin: "0 auto", padding: "2.5rem 1.5rem", fontFamily: sans }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem" }}>
+        <div>
+          <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600, color: C.text }}>Your Deck</div>
+          <div style={{ fontSize: "0.8rem", color: C.soft, marginTop: "0.2rem" }}>{cards.length} {cards.length === 1 ? "word" : "words"} saved</div>
+        </div>
+        <Btn onClick={() => { setMode("review"); setRIdx(0); setFlipped(false); }} small>
+          Review All
+        </Btn>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+        {cards.map(card => (
+          <div
+            key={card.word}
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              padding: "0.9rem 1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: serif, fontWeight: 600, color: C.text, fontSize: "1.05rem" }}>{card.word}</div>
+              <div style={{ fontSize: "0.78rem", color: C.soft, marginTop: "0.2rem", fontStyle: "italic" }}>{card.context}</div>
+              {card.chapter && (
+                <div style={{ fontSize: "0.7rem", color: C.muted, marginTop: "0.15rem" }}>{card.chapter}</div>
+              )}
+            </div>
+            <button
+              onClick={() => onDelete(card.word)}
+              style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: "0.9rem", padding: "0.25rem", lineHeight: 1 }}
+              title="Remove"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+export default function App() {
+  const [screen, setScreen] = useState("welcome"); // welcome | language | level | chapters | exercise
+  const [lang, setLang] = useState(null);
+  const [level, setLevel] = useState(null);
+  const [chapter, setChapter] = useState(null);
+  const [sIdx, setSIdx] = useState(0);
+  const [input, setInput] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [showTrans, setShowTrans] = useState(false);
+  const [grammarModal, setGrammarModal] = useState(false);
+  const [flashcards, setFlashcards] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [tab, setTab] = useState("home");
+  const [showHint, setShowHint] = useState(true);
+
+  const s = SENTENCES[sIdx % SENTENCES.length];
+
+  // Greek-aware normalization: strip accents, collapse homophones
+  // Handles: accent marks, ω/ο, η/ι/υ/οι/ει (all sound like "i"), final σ/ς
+  function normalize(str) {
+    return str
+      .trim()
+      .toLowerCase()
+      // Strip Greek accent marks via Unicode decomposition
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .normalize("NFC")
+      // Collapse homophones — all sound like "i" in modern Greek
+      .replace(/[ηυ]/g, "ι")
+      .replace(/οι|ει/g, "ι")
+      // Collapse ω → ο (both sound the same in modern Greek)
+      .replace(/ω/g, "ο")
+      // Normalize final sigma ς → σ
+      .replace(/ς/g, "σ");
+  }
+
+  // Levenshtein distance for typo tolerance
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+    for (let i = 1; i <= m; i++)
+      for (let j = 1; j <= n; j++)
+        dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    return dp[m][n];
+  }
+
+  const inputNorm = normalize(input);
+  const answerNorm = s ? normalize(s.answer) : "";
+  const exact = inputNorm === answerNorm;
+  const dist = s ? levenshtein(inputNorm, answerNorm) : 99;
+  const typo = !exact && dist <= 1;
+  const correct = exact || typo;
+
+  // Prefix match for green typing
+  const prefixMatch = answerNorm.startsWith(inputNorm) && inputNorm.length > 0;
+  const inputColor = input.length === 0 ? C.text : prefixMatch ? C.correct : C.text;
+
+  function fireToast(msg) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2200);
+  }
+
+  function saveWord(word) {
+    if (!word || word.length < 2) return;
+    if (flashcards.find(f => f.word === word)) {
+      fireToast(`"${word}" is already in your deck`);
+      return;
+    }
+    setFlashcards(prev => [...prev, {
+      word,
+      translation: s.translation,
+      context: `${s.before} ___ ${s.after}`,
+      chapter: chapter?.theme,
+    }]);
+    fireToast(`"${word}" saved to flashcards ✓`);
+  }
+
+  function goToExercise(ch) {
+    setChapter(ch);
+    setSIdx(0);
+    setInput("");
+    setSubmitted(false);
+    setShowTrans(false);
+    setScreen("exercise");
+  }
+
+  function handleNext() {
+    if (sIdx < SENTENCES.length - 1) {
+      setSIdx(i => i + 1);
+      setInput("");
+      setSubmitted(false);
+      setShowTrans(false);
+    } else {
+      setScreen("chapters");
+      setTab("home");
+    }
+  }
+
+  // Pre-chapter screens (no nav)
+  if (screen === "welcome") return <Welcome onStart={() => setScreen("language")} />;
+  if (screen === "language") return <LanguagePicker onSelect={l => { setLang(l); setScreen("level"); }} />;
+  if (screen === "level") return <LevelPicker onSelect={l => { setLevel(l); setScreen("chapters"); setTab("home"); }} />;
+
+  // Main app shell
+  return (
+    <div style={{ fontFamily: sans, minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column" }}>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: "fixed",
+          top: "1.25rem",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: C.text,
+          color: "#fff",
+          padding: "0.6rem 1.35rem",
+          borderRadius: 30,
+          fontSize: "0.82rem",
+          zIndex: 9999,
+          whiteSpace: "nowrap",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+          pointerEvents: "none",
+        }}>
+          {toast}
+        </div>
+      )}
+
+      {/* Grammar Modal */}
+      {grammarModal && s && (
+        <div
+          onClick={() => setGrammarModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9000,
+            padding: "1.5rem",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: C.surface,
+              borderRadius: 16,
+              padding: "2.25rem",
+              maxWidth: 480,
+              width: "100%",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", color: C.green, textTransform: "uppercase", marginBottom: "0.5rem" }}>
+              Grammar Overview
+            </div>
+            <div style={{ fontFamily: serif, fontSize: "1.4rem", fontWeight: 600, color: C.text, marginBottom: "1.25rem", lineHeight: 1.3 }}>
+              {s.grammarLabel}
+            </div>
+            <p style={{ color: C.soft, lineHeight: 1.75, fontSize: "0.92rem", marginBottom: "1.75rem" }}>
+              {s.grammarFull}
+            </p>
+            <Btn onClick={() => setGrammarModal(false)}>Got it</Btn>
+          </div>
+        </div>
+      )}
+
+      {/* Page content */}
+      <div style={{ flex: 1, overflow: "auto" }}>
+        {tab === "home" && screen === "chapters" && (
+          <ChapterMap chapters={CHAPTERS} level={level} lang={lang} onSelect={goToExercise} />
+        )}
+        {tab === "home" && screen === "exercise" && s && (
+          <ExerciseView
+            s={s}
+            chapter={chapter}
+            sIdx={sIdx}
+            total={SENTENCES.length}
+            input={input}
+            setInput={setInput}
+            submitted={submitted}
+            correct={correct}
+            exact={exact}
+            typo={typo}
+            prefixMatch={prefixMatch}
+            inputColor={inputColor}
+            showTrans={showTrans}
+            setShowTrans={setShowTrans}
+            onSubmit={() => setSubmitted(true)}
+            onNext={handleNext}
+            onSaveWord={saveWord}
+            onGrammarDoubleClick={() => setGrammarModal(true)}
+            showHint={showHint}
+            onDismissHint={() => setShowHint(false)}
+          />
+        )}
+        {tab === "flashcards" && (
+          <FlashcardDeck
+            cards={flashcards}
+            onDelete={word => setFlashcards(f => f.filter(c => c.word !== word))}
+          />
+        )}
+      </div>
+
+      {/* Bottom Nav */}
+      <nav style={{
+        background: C.surface,
+        borderTop: `1px solid ${C.border}`,
+        display: "flex",
+        flexShrink: 0,
+      }}>
+        {[
+          { key: "home", icon: "❖", label: "Chapters" },
+          { key: "flashcards", icon: "⊞", label: flashcards.length > 0 ? `Cards (${flashcards.length})` : "Cards" },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => {
+              setTab(t.key);
+              if (t.key === "home" && screen !== "exercise") setScreen("chapters");
+            }}
+            style={{
+              flex: 1,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "0.2rem",
+              padding: "0.7rem 0.5rem",
+              color: tab === t.key ? C.green : C.muted,
+              fontFamily: sans,
+              fontSize: "0.78rem",
+              fontWeight: tab === t.key ? 600 : 400,
+              transition: "color 0.15s",
+              borderTop: tab === t.key ? `2px solid ${C.green}` : "2px solid transparent",
+            }}
+          >
+            <span style={{ fontSize: "1rem" }}>{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
