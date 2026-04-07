@@ -255,16 +255,21 @@ function Btn({ children, onClick, variant = "primary", disabled = false, small =
   );
 }
 
-// ── WordSpan – double-click to save ──────────────────────────────────────────
+// ── WordSpan – double-click / long-press to save ─────────────────────────────
 function WordSpan({ text, onSave }) {
   return (
     <>
       {text.split(/(\s+)/).map((tok, i) => {
         if (!tok.trim()) return <span key={i}>{tok}</span>;
+        let pressTimer = null;
+        const word = tok.replace(/[.,!?;:«»]/g, "");
         return (
           <span
             key={i}
-            onDoubleClick={() => onSave(tok.replace(/[.,!?;:«»]/g, ""))}
+            onDoubleClick={() => onSave(word)}
+            onTouchStart={() => { pressTimer = setTimeout(() => onSave(word), 300); }}
+            onTouchEnd={() => { clearTimeout(pressTimer); }}
+            onTouchMove={() => { clearTimeout(pressTimer); }}
             title="Double-click to save to flashcards"
             style={{ cursor: "default", borderRadius: 3, padding: "1px 0", transition: "background 0.12s" }}
             onMouseEnter={e => (e.target.style.background = C.amberLight)}
@@ -392,6 +397,12 @@ function LevelPicker({ onSelect, onBack }) {
 }
 
 function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
+  const visibleChapters = chapters.filter(ch => {
+    if (level?.code === "A1") return ch.id >= 1 && ch.id <= 8;
+    if (level?.code === "A2") return ch.id >= 9 && ch.id <= 16;
+    if (level?.code === "B1") return ch.id >= 17 && ch.id <= 24;
+    return true;
+  });
   return (
     <div style={{ maxWidth: 580, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
@@ -423,7 +434,7 @@ function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-        {chapters.map((ch, i) => {
+        {visibleChapters.map((ch, i) => {
           const pct = ch.total ? ch.done / ch.total : 0;
           const complete = pct >= 1;
           const inProgress = pct > 0 && pct < 1;
@@ -447,8 +458,13 @@ function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
               onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; e.currentTarget.style.boxShadow = "0 3px 14px rgba(43,95,71,0.1)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = complete ? "#B0CEBC" : C.border; e.currentTarget.style.boxShadow = "none"; }}
             >
-              <div style={{ fontWeight: 600, color: C.muted, fontSize: "0.78rem", minWidth: 32, flexShrink: 0 }}>
-                {String(i + 1).padStart(2, "0")}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
+                <div style={{ fontWeight: 600, color: C.muted, fontSize: "0.78rem", minWidth: 32, textAlign: "center" }}>
+                  {String(i + 1).padStart(2, "0")}
+                </div>
+                <div style={{ background: C.greenLight, color: C.green, fontWeight: 700, fontSize: "0.65rem", borderRadius: 4, padding: "0.1rem 0.4rem", letterSpacing: "0.03em" }}>
+                  {level?.code}
+                </div>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 500, color: C.text, fontSize: "0.95rem", marginBottom: "0.15rem" }}>{ch.theme}</div>
@@ -486,6 +502,10 @@ function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
 
 function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, correct, exact, typo, prefixMatch, inputColor, showTrans, setShowTrans, onSubmit, onNext, onSaveWord, onGrammarDoubleClick, showHint, onDismissHint, onBack }) {
   const pct = total > 0 ? (sIdx / total) : 0;
+  const isTouchDevice = window.matchMedia("(hover: none)").matches;
+  const hintText = isTouchDevice
+    ? "Tap and hold any word in the sentence to save it to your flashcard deck."
+    : "Double-click any word in the sentence to save it to your flashcard deck.";
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", minHeight: "calc(100vh - 62px)", display: "flex", flexDirection: "column" }}>
 
@@ -692,7 +712,7 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
               <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
                 <span style={{ fontSize: "1.1rem" }}>💡</span>
                 <span style={{ fontSize: "0.82rem", color: C.amber, lineHeight: 1.5 }}>
-                  <strong>Tip:</strong> Double-click any word in the sentence to save it to your flashcard deck.
+                  <strong>Tip:</strong> {hintText}
                 </span>
               </div>
               <button
