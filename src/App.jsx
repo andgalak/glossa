@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase.js";
 import { sm2, weightedPick } from "./lib/sm2.js";
+import AuthScreen from "./components/AuthScreen.jsx";
 
 // ── Fonts ────────────────────────────────────────────────────────────────────
 const fontStyle = document.createElement("style");
@@ -49,29 +50,183 @@ const LEVELS = [
 ];
 
 const CHAPTERS = [
-  { id: 1, theme: "Greetings & Introductions", grammar: "To Be / Personal Pronouns" },
-  { id: 2, theme: "Numbers & Time",            grammar: "Cardinal Numbers, Clock" },
-  { id: 3, theme: "Food & Drink",              grammar: "Indefinite Article, Basic Verbs" },
-  { id: 4, theme: "Family",                    grammar: "Possessives, Noun Gender" },
-  { id: 5, theme: "Getting Around",            grammar: "Imperatives, Prepositions" },
-  { id: 6, theme: "Shopping",                  grammar: "Accusative Case Basics" },
-  { id: 7, theme: "Home & Rooms",              grammar: "Locatives, Adjective Agreement" },
-  { id: 8, theme: "Daily Routine",             grammar: "Present Tense Verb Conjugation" },
+  { id: 1,  theme: "Greetings & Introductions",       grammar: "To Be / Personal Pronouns" },
+  { id: 2,  theme: "Numbers & Time",                  grammar: "Cardinal Numbers, Clock" },
+  { id: 3,  theme: "Food & Drink",                    grammar: "Present Tense: τρώω, πίνω, θέλω" },
+  { id: 4,  theme: "Family & People",                 grammar: "Possessive Pronouns" },
+  { id: 5,  theme: "Getting Around",                  grammar: "Preposition + Article Fusions" },
+  { id: 6,  theme: "Shopping & Prices",               grammar: "Accusative Case Basics" },
+  { id: 7,  theme: "Home & Rooms",                    grammar: "Adjective Agreement (Nominative)" },
+  { id: 8,  theme: "Daily Routine",                   grammar: "Present Tense Verb Conjugation" },
+  { id: 9,  theme: "Past Experiences",                grammar: "Simple Past (Aorist)" },
+  { id: 10, theme: "Making Plans",                    grammar: "Future with θα" },
+  { id: 11, theme: "Describing People & Things",      grammar: "Adjective Agreement (All Cases)" },
+  { id: 12, theme: "Obligations & Wishes",            grammar: "Modals: πρέπει να, θέλω να" },
+  { id: 13, theme: "Quantities & Comparisons",        grammar: "Genitive Case" },
+  { id: 14, theme: "Health & Feelings",               grammar: "Impersonal Verbs: με πονάει, μου αρέσει" },
+  { id: 15, theme: "Instructions & Directions",       grammar: "Imperative Mood" },
+  { id: 16, theme: "Transport & Travel",              grammar: "Imperfect Tense (Past Habits)" },
+  { id: 17, theme: "Telling Stories",                 grammar: "Aorist vs Imperfect" },
+  { id: 18, theme: "Opinions & Discussion",           grammar: "Subordinate Clauses" },
+  { id: 19, theme: "Hypotheticals & Conditions",      grammar: "Conditional Sentences" },
+  { id: 20, theme: "Work & Ambitions",                grammar: "Indirect Speech" },
+  { id: 21, theme: "Relationships & Social Life",     grammar: "Genitive of Possession" },
+  { id: 22, theme: "Media & Current Events",          grammar: "Passive Voice" },
+  { id: 23, theme: "Processes & Instructions",        grammar: "Impersonal & Passive Constructions" },
+  { id: 24, theme: "Comparisons & Extremes",          grammar: "Comparative & Superlative" },
 ];
 
 // ── Chapter Prompts ───────────────────────────────────────────────────────────
-// Shared preamble and schema instruction used by all chapters
-const PROMPT_PREFIX = `You are a passionate, slightly chaotic Greek tutor who genuinely believes learning Greek is one of life's great joys and will not shut up about it. Generate 10 cloze sentences for A1 learners where the blank always tests a present tense verb. Greek sentence first, always. Natural street Greek, not textbook Greek. Output ONLY a valid JSON array with these exact fields: before, answer, after, naturalTranslation, gloss, greekGrammarTags, englishGrammarTags, grammarLabel, grammarShort. No preamble, no markdown fences.`;
+const PROMPT_PREFIX = `You are a rigorous Greek language instructor who cares deeply about teaching correct modern Greek. Generate 10 cloze sentences where the blank tests exactly one grammar point. Rules: Greek sentence first. Natural spoken Greek, not formal or textbook. The blank must unambiguously require the target form — no other word should fit grammatically. Vary sentence subjects (not always εγώ). Include a mix of genders and real Greek names. Output ONLY a valid JSON array with these exact fields: before, answer, after, naturalTranslation, gloss, greekGrammarTags, englishGrammarTags, grammarLabel, grammarShort. No preamble, no markdown fences, no trailing comma.`;
 
 const CHAPTER_PROMPTS = {
-  1: `${PROMPT_PREFIX} Theme: greetings and introductions. Grammar focus: το είμαι (to be) and personal pronouns.`,
-  2: `${PROMPT_PREFIX} Theme: numbers and time. Grammar focus: cardinal numbers and telling the clock.`,
-  3: `${PROMPT_PREFIX} Theme: food and drink. Grammar focus: indefinite article and basic verbs (τρώω, πίνω, θέλω).`,
-  4: `${PROMPT_PREFIX} Theme: family. Grammar focus: possessives (μου, σου, του/της) and noun gender.`,
-  5: `${PROMPT_PREFIX} Theme: getting around the city. Grammar focus: imperatives and prepositions (σε, από, για, με).`,
-  6: `${PROMPT_PREFIX} Theme: shopping. Grammar focus: accusative case basics — direct objects.`,
-  7: `${PROMPT_PREFIX} Theme: home and rooms. Grammar focus: locatives (εδώ, εκεί, μέσα, έξω) and adjective agreement.`,
-  8: `${PROMPT_PREFIX} Theme: daily routine. Grammar focus: present tense conjugation of common -ω verbs.`,
+  1: `${PROMPT_PREFIX}
+Level: A1. Theme: greetings and introductions.
+Grammar focus: εἶμαι (to be) in all six persons — είμαι, είσαι, είναι, είμαστε, είστε, είναι.
+The blank must always be a conjugated form of είμαι.
+Example of what to aim for: "Εγώ ___ δάσκαλος." → είμαι`,
+
+  2: `${PROMPT_PREFIX}
+Level: A1. Theme: numbers, dates, and telling the time.
+Grammar focus: cardinal numbers as they appear in real phrases — phone numbers, prices, ages, clock times.
+The blank must always be a number word (e.g. τρεις, δώδεκα, είκοσι πέντε).
+Example: "Η συνάντηση είναι στις ___ το απόγευμα." → τρεις`,
+
+  3: `${PROMPT_PREFIX}
+Level: A1. Theme: food and drink ordering.
+Grammar focus: high-frequency verbs τρώω, πίνω, θέλω, παίρνω in present tense, all persons.
+The blank must always be a conjugated present-tense verb.
+Sentences should feel like things you'd say at a Greek café or taverna.
+Example: "Ο Νίκος ___ καφέ κάθε πρωί." → πίνει`,
+
+  4: `${PROMPT_PREFIX}
+Level: A1. Theme: family and people.
+Grammar focus: possessive pronouns μου, σου, του, της, μας, σας, τους attached to nouns.
+The blank must always be a possessive pronoun clitic.
+Vary the noun genders so learners encounter all three.
+Example: "Πού είναι η μητέρα ___;" → σου`,
+
+  5: `${PROMPT_PREFIX}
+Level: A1. Theme: getting around the city.
+Grammar focus: prepositions fused with the definite article — στο, στη, στην, στον, από το, για το.
+The blank must always be a preposition+article fusion.
+Use real Athens landmarks and everyday destinations.
+Example: "Πηγαίνω ___ σούπερ μάρκετ." → στο`,
+
+  6: `${PROMPT_PREFIX}
+Level: A1. Theme: shopping and prices.
+Grammar focus: accusative case — direct objects with masculine, feminine, and neuter nouns. The article changes: τον, την, το.
+The blank must always be an accusative article or article+noun pair.
+Example: "Θέλω ___ λογαριασμό, παρακαλώ." → τον`,
+
+  7: `${PROMPT_PREFIX}
+Level: A1. Theme: the home and describing rooms.
+Grammar focus: adjective agreement in gender and number — nominative case only.
+The blank must always be an adjective in the correct gender/number form.
+Use all three genders across the 10 sentences.
+Example: "Το δωμάτιο είναι πολύ ___." → μικρό`,
+
+  8: `${PROMPT_PREFIX}
+Level: A1. Theme: daily routine.
+Grammar focus: present tense conjugation of common -ω verbs — ξυπνώ, δουλεύω, τελειώνω, φεύγω, φτάνω.
+The blank must always be a conjugated present-tense form. Use all six persons across the 10 sentences.
+Example: "Η Μαρία ___ στις οχτώ το πρωί." → ξυπνάει`,
+
+  9: `${PROMPT_PREFIX}
+Level: A2. Theme: past experiences and recent events.
+Grammar focus: simple past (aorist) of common verbs — έφαγα, ήπια, πήγα, είδα, έκανα.
+The blank must always be an aorist form. Use time words (χθες, πέρυσι, πριν) to make the tense unambiguous.
+Example: "Χθες ___ στη θάλασσα με τους φίλους μου." → πήγα`,
+
+  10: `${PROMPT_PREFIX}
+Level: A2. Theme: making plans and talking about the future.
+Grammar focus: future with θα + verb (imperfective for ongoing, perfective for completed action).
+The blank must always be a θα + verb construction. Make the future time reference explicit.
+Example: "Αύριο ___ στην Αθήνα." → θα πάω`,
+
+  11: `${PROMPT_PREFIX}
+Level: A2. Theme: describing people and things.
+Grammar focus: adjective agreement across all cases and genders — nominative and accusative.
+The blank must force the learner to choose the correct gender AND case form of the adjective.
+Example: "Αγόρασα ένα ___ φόρεμα για το πάρτι." → ωραίο`,
+
+  12: `${PROMPT_PREFIX}
+Level: A2. Theme: obligations, wishes, and suggestions.
+Grammar focus: modal constructions — πρέπει να, θέλω να, μπορώ να + subjunctive verb.
+The blank must always be the subjunctive verb form that follows the modal.
+Example: "Πρέπει να ___ νερό κάθε μέρα." → πίνεις`,
+
+  13: `${PROMPT_PREFIX}
+Level: A2. Theme: shopping, quantities, and comparisons.
+Grammar focus: genitive case for possession and quantity — του, της, των + noun.
+The blank must always be a genitive article or genitive noun phrase.
+Example: "Το χρώμα ___ αυτοκινήτου είναι κόκκινο." → του`,
+
+  14: `${PROMPT_PREFIX}
+Level: A2. Theme: health, body, and feelings.
+Grammar focus: reflexive and impersonal verbs — με πονάει, νιώθω, αισθάνομαι, μου αρέσει.
+The blank must always be one of these verb forms in the correct person.
+Example: "Με ___ το κεφάλι σήμερα." → πονάει`,
+
+  15: `${PROMPT_PREFIX}
+Level: A2. Theme: giving and following instructions.
+Grammar focus: imperative mood — singular and plural, both perfective and imperfective aspect.
+The blank must always be an imperative form. Make it clear from context whether singular or plural is needed.
+Example: "Γύρνα ___ δεξιά στο φανάρι." → δεξιά`,
+
+  16: `${PROMPT_PREFIX}
+Level: A2. Theme: transport and travel.
+Grammar focus: imperfect tense (παρατατικός) for past habits and ongoing past states.
+The blank must always be an imperfect form. Use context (κάθε μέρα, συχνά, πάντα) to signal ongoing past.
+Example: "Κάθε καλοκαίρι ___ στη Ρόδο." → πηγαίναμε`,
+
+  17: `${PROMPT_PREFIX}
+Level: B1. Theme: telling stories and recounting events.
+Grammar focus: aorist vs imperfect contrast in narrative — knowing when to use each.
+The blank must force a choice between aorist and imperfect. The surrounding sentence must make the correct aspect unambiguous.
+Example: "Ενώ ___ ο Γιώργης τηλεφώνησε." → διάβαζα`,
+
+  18: `${PROMPT_PREFIX}
+Level: B1. Theme: opinions, arguments, and discussion.
+Grammar focus: subordinate clauses with ότι, που, γιατί, αν — verb stays indicative after these.
+The blank must always be a correctly conjugated indicative verb inside a subordinate clause.
+Example: "Νομίζω ότι αυτή η ταινία ___ πολύ καλή." → είναι`,
+
+  19: `${PROMPT_PREFIX}
+Level: B1. Theme: hypotheticals and conditions.
+Grammar focus: conditional sentences — αν + present/subjunctive in the condition, future/conditional in the result.
+The blank must always be the correct verb form in either the condition or result clause.
+Example: "Αν έχεις χρόνο, ___ μαζί για καφέ." → πάμε`,
+
+  20: `${PROMPT_PREFIX}
+Level: B1. Theme: work, ambitions, and life decisions.
+Grammar focus: indirect speech — reporting what someone said using είπε ότι, είπε να, ρώτησε αν.
+The blank must always be the verb form inside the reported clause, correctly shifted for indirect speech.
+Example: "Μου είπε ότι ___ αύριο." → έρχεται`,
+
+  21: `${PROMPT_PREFIX}
+Level: B1. Theme: relationships and social life.
+Grammar focus: genitive of possession with proper nouns and pronouns.
+The blank must force use of the genitive, including cases where Greek uses genitive where English uses apostrophe-s.
+Example: "Αυτό είναι το σπίτι ___." → της Ελένης`,
+
+  22: `${PROMPT_PREFIX}
+Level: B1. Theme: media, news, and current events.
+Grammar focus: passive voice in present and past — the -μαι/-ομαι verb endings.
+The blank must always be a passive verb form.
+Example: "Η απόφαση ___ χθες από την κυβέρνηση." → ανακοινώθηκε`,
+
+  23: `${PROMPT_PREFIX}
+Level: B1. Theme: describing processes and giving detailed instructions.
+Grammar focus: impersonal constructions and passive imperatives — πρέπει να γίνει, χρειάζεται να, έτσι γίνεται.
+The blank must always be an impersonal or passive construction that describes a process step.
+Example: "Πρώτα ___ το κρέας για δέκα λεπτά." → ψήνεται`,
+
+  24: `${PROMPT_PREFIX}
+Level: B1. Theme: expressing degrees, comparisons, and extremes.
+Grammar focus: comparative and superlative — πιο + adjective, ο πιο + adjective, καλύτερος/χειρότερος irregular forms.
+The blank must always be a comparative or superlative form, including irregular ones.
+Example: "Αυτό το εστιατόριο είναι ___ από εκείνο." → καλύτερο`,
 };
 
 // ── Utility ───────────────────────────────────────────────────────────────────
@@ -144,10 +299,11 @@ function Welcome({ onStart }) {
   );
 }
 
-function LanguagePicker({ onSelect }) {
+function LanguagePicker({ onSelect, onBack }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: sans, padding: "3rem 2rem" }}>
       <div style={{ maxWidth: 540, margin: "0 auto" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: C.soft, fontSize: "0.875rem", cursor: "pointer", fontFamily: sans, padding: 0, marginBottom: "1.5rem", display: "block" }}>← Back</button>
         <div style={{ fontFamily: serif, fontSize: "1.75rem", fontWeight: 600, color: C.text, marginBottom: "0.35rem" }}>Choose a language</div>
         <div style={{ color: C.soft, fontSize: "0.875rem", marginBottom: "2.5rem" }}>More languages arriving soon.</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.7rem" }}>
@@ -185,10 +341,11 @@ function LanguagePicker({ onSelect }) {
   );
 }
 
-function LevelPicker({ onSelect }) {
+function LevelPicker({ onSelect, onBack }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: sans, padding: "3rem 2rem" }}>
       <div style={{ maxWidth: 540, margin: "0 auto" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: C.soft, fontSize: "0.875rem", cursor: "pointer", fontFamily: sans, padding: 0, marginBottom: "1.5rem", display: "block" }}>← Back</button>
         <div style={{ fontFamily: serif, fontSize: "1.75rem", fontWeight: 600, color: C.text, marginBottom: "0.35rem" }}>What's your level?</div>
         <div style={{ color: C.soft, fontSize: "0.875rem", marginBottom: "2.5rem" }}>You can change this any time. When in doubt, go one lower.</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
@@ -234,25 +391,35 @@ function LevelPicker({ onSelect }) {
   );
 }
 
-function ChapterMap({ chapters, level, lang, onSelect }) {
+function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
   return (
     <div style={{ maxWidth: 580, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
-      <div style={{ marginBottom: "2rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.3rem" }}>
-          <span style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, color: C.text }}>{lang?.name}</span>
-          <span style={{
-            background: C.greenLight,
-            color: C.green,
-            fontWeight: 700,
-            fontSize: "0.82rem",
-            padding: "0.2rem 0.65rem",
-            borderRadius: 6,
-            letterSpacing: "0.03em",
-          }}>
-            {level?.code}
-          </span>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.3rem" }}>
+            <span style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, color: C.text }}>{lang?.name}</span>
+            <span style={{
+              background: C.greenLight,
+              color: C.green,
+              fontWeight: 700,
+              fontSize: "0.82rem",
+              padding: "0.2rem 0.65rem",
+              borderRadius: 6,
+              letterSpacing: "0.03em",
+            }}>
+              {level?.code}
+            </span>
+          </div>
+          <div style={{ color: C.soft, fontSize: "0.875rem" }}>{level?.desc}</div>
         </div>
-        <div style={{ color: C.soft, fontSize: "0.875rem" }}>{level?.desc}</div>
+        <button
+          onClick={onSignOut}
+          style={{ background: "none", border: "none", color: C.muted, fontSize: "0.78rem", cursor: "pointer", fontFamily: sans, paddingTop: "0.35rem" }}
+          onMouseEnter={e => (e.currentTarget.style.color = C.soft)}
+          onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+        >
+          Sign out
+        </button>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
@@ -302,7 +469,12 @@ function ChapterMap({ chapters, level, lang, onSelect }) {
                 color: complete ? C.green : C.muted,
                 flexShrink: 0,
               }}>
-                {complete ? "✓ Done" : inProgress ? `${ch.done}/${ch.total}` : `0/${ch.total}`}
+                {complete
+                  ? <span
+                      onMouseEnter={e => (e.currentTarget.textContent = "↺ Retake")}
+                      onMouseLeave={e => (e.currentTarget.textContent = "✓ Done")}
+                    >✓ Done</span>
+                  : inProgress ? `${ch.done}/${ch.total}` : `0/${ch.total}`}
               </div>
             </button>
           );
@@ -312,7 +484,7 @@ function ChapterMap({ chapters, level, lang, onSelect }) {
   );
 }
 
-function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, correct, exact, typo, prefixMatch, inputColor, showTrans, setShowTrans, onSubmit, onNext, onSaveWord, onGrammarDoubleClick, showHint, onDismissHint }) {
+function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, correct, exact, typo, prefixMatch, inputColor, showTrans, setShowTrans, onSubmit, onNext, onSaveWord, onGrammarDoubleClick, showHint, onDismissHint, onBack }) {
   const pct = total > 0 ? (sIdx / total) : 0;
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", minHeight: "calc(100vh - 62px)", display: "flex", flexDirection: "column" }}>
@@ -332,11 +504,14 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
 
       {/* Chapter header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2.75rem" }}>
-        <div>
-          <div style={{ fontFamily: serif, fontWeight: 600, color: C.text, fontSize: "1.05rem", marginBottom: "0.2rem" }}>
-            {chapter?.theme}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", color: C.soft, fontSize: "0.875rem", cursor: "pointer", fontFamily: sans, padding: 0, paddingTop: "0.15rem", flexShrink: 0 }}>← Back</button>
+          <div>
+            <div style={{ fontFamily: serif, fontWeight: 600, color: C.text, fontSize: "1.05rem", marginBottom: "0.2rem" }}>
+              {chapter?.theme}
+            </div>
+            <div style={{ fontSize: "0.78rem", color: C.soft }}>{chapter?.grammar}</div>
           </div>
-          <div style={{ fontSize: "0.78rem", color: C.soft }}>{chapter?.grammar}</div>
         </div>
         <div style={{ fontSize: "0.82rem", color: C.muted, flexShrink: 0, paddingTop: "0.2rem" }}>
           {sIdx + 1} / {total}
@@ -418,7 +593,7 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
             </button>
             {showTrans && (
               <div style={{ color: C.soft, fontStyle: "italic", fontSize: "0.9rem", marginTop: "0.65rem", lineHeight: 1.6 }}>
-                {s.translation}
+                {s.naturalTranslation ?? s.translation}
               </div>
             )}
           </div>
@@ -805,17 +980,6 @@ function FlashcardDeck({ cards, onDelete, onRate }) {
   );
 }
 
-// ── Session ID (pre-auth anonymous identity) ──────────────────────────────────
-function getSessionId() {
-  const KEY = "glossa_session_id";
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(KEY, id);
-  }
-  return id;
-}
-
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("welcome"); // welcome | language | level | chapters | exercise
@@ -834,30 +998,49 @@ export default function App() {
   const [sentences, setSentences] = useState([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState({}); // keyed by chapter_id
+  const [user, setUser] = useState(undefined); // undefined = checking, null = signed out
+
+  // Auth: check existing session on mount, then subscribe to changes
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session) {
+        setFlashcards(null);
+        setProgress({});
+        setSentences([]);
+        setScreen("welcome");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const s = sentences[sIdx % Math.max(sentences.length, 1)];
 
-  // Load flashcards from Supabase once on mount
+  // Load flashcards whenever the authenticated user changes
   useEffect(() => {
+    if (!user?.id) return;
     supabase
       .from("flashcards")
       .select("*")
-      .eq("session_id", getSessionId())
+      .eq("session_id", user.id)
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
         if (error) { console.warn("[flashcards] load error:", error.message); setFlashcards([]); return; }
         setFlashcards(data ?? []);
       });
-  }, []);
+  }, [user?.id]);
 
   // Load progress from Supabase whenever the chapter map is shown
   useEffect(() => {
-    if (screen !== "chapters") return;
+    if (screen !== "chapters" || !user?.id) return;
     const levelCode = level?.code ?? "A1";
     supabase
       .from("user_progress")
       .select("chapter_id, completed_sentences, total_sentences")
-      .eq("session_id", getSessionId())
+      .eq("session_id", user.id)
       .eq("level", levelCode)
       .then(({ data, error }) => {
         if (error) { console.warn("[progress] load error:", error.message); return; }
@@ -865,7 +1048,7 @@ export default function App() {
         (data ?? []).forEach(r => { map[r.chapter_id] = { done: r.completed_sentences, total: r.total_sentences }; });
         setProgress(map);
       });
-  }, [screen, level]);
+  }, [screen, level, user?.id]);
 
   // Greek-aware normalization: strip accents, collapse homophones
   // Handles: accent marks, ω/ο, η/ι/υ/οι/ει (all sound like "i"), final σ/ς
@@ -919,11 +1102,16 @@ export default function App() {
       return;
     }
     const newCard = {
-      session_id: getSessionId(),
+      session_id: user.id,
       word,
-      translation: s.translation ?? "",
+      translation: s.naturalTranslation ?? s.translation ?? "",
       context: `${s.before} ___ ${s.after}`,
       chapter: chapter?.theme ?? "",
+      ease_factor: 2.5,
+      interval: 1,
+      repetitions: 0,
+      retired: false,
+      due_date: new Date().toISOString(),
     };
     // Optimistic update
     setFlashcards(prev => [...(prev ?? []), newCard]);
@@ -995,7 +1183,7 @@ export default function App() {
       .from("user_progress")
       .upsert(
         {
-          session_id: getSessionId(),
+          session_id: user.id,
           chapter_id: chapterId,
           level: levelCode,
           completed_sentences: completedCount,
@@ -1020,15 +1208,18 @@ export default function App() {
       setSubmitted(false);
       setShowTrans(false);
     } else {
-      setScreen("chapters");
-      setTab("home");
+      setScreen("complete");
     }
   }
 
+  // Auth guard
+  if (user === undefined) return null; // still checking session
+  if (user === null) return <AuthScreen />;
+
   // Pre-chapter screens (no nav)
   if (screen === "welcome") return <Welcome onStart={() => setScreen("language")} />;
-  if (screen === "language") return <LanguagePicker onSelect={l => { setLang(l); setScreen("level"); }} />;
-  if (screen === "level") return <LevelPicker onSelect={l => { setLevel(l); setScreen("chapters"); setTab("home"); }} />;
+  if (screen === "language") return <LanguagePicker onSelect={l => { setLang(l); setScreen("level"); }} onBack={() => setScreen("welcome")} />;
+  if (screen === "level") return <LevelPicker onSelect={l => { setLevel(l); setScreen("chapters"); setTab("home"); }} onBack={() => setScreen("language")} />;
 
   // Main app shell
   return (
@@ -1084,11 +1275,14 @@ export default function App() {
             <div style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", color: C.green, textTransform: "uppercase", marginBottom: "0.5rem" }}>
               Grammar Overview
             </div>
-            <div style={{ fontFamily: serif, fontSize: "1.4rem", fontWeight: 600, color: C.text, marginBottom: "1.25rem", lineHeight: 1.3 }}>
+            <div style={{ fontFamily: serif, fontSize: "1.4rem", fontWeight: 600, color: C.text, marginBottom: "0.75rem", lineHeight: 1.3 }}>
               {s.grammarLabel}
             </div>
+            <div style={{ fontFamily: serif, fontSize: "0.92rem", color: C.soft, fontStyle: "italic", marginBottom: "1.25rem", lineHeight: 1.6 }}>
+              {s.before} <strong style={{ fontStyle: "normal", color: C.green }}>{s.answer}</strong> {s.after}
+            </div>
             <p style={{ color: C.soft, lineHeight: 1.75, fontSize: "0.92rem", marginBottom: "1.75rem" }}>
-              {s.grammarFull}
+              {s.grammarFull ?? s.grammarShort}
             </p>
             <Btn onClick={() => setGrammarModal(false)}>Got it</Btn>
           </div>
@@ -1107,7 +1301,19 @@ export default function App() {
             level={level}
             lang={lang}
             onSelect={goToExercise}
+            onSignOut={() => supabase.auth.signOut()}
           />
+        )}
+        {tab === "home" && screen === "complete" && (
+          <div style={{ maxWidth: 480, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center", fontFamily: sans }}>
+            <div style={{ fontFamily: serif, fontSize: "1.75rem", fontWeight: 600, color: C.green, marginBottom: "0.5rem" }}>Chapter complete</div>
+            <div style={{ fontFamily: serif, fontSize: "1.1rem", color: C.text, marginBottom: "0.5rem" }}>{chapter?.theme}</div>
+            <div style={{ fontSize: "0.88rem", color: C.muted, marginBottom: "3rem" }}>{sentences.length} sentences finished</div>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+              <Btn variant="ghost" onClick={() => { setScreen("chapters"); setTab("home"); }}>Back to chapters</Btn>
+              <Btn onClick={() => { setSIdx(0); setInput(""); setSubmitted(false); setShowTrans(false); setScreen("exercise"); }}>↺ Retake chapter</Btn>
+            </div>
+          </div>
         )}
         {tab === "home" && screen === "exercise" && loading && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 62px)", fontFamily: sans, color: C.soft, fontSize: "0.95rem" }}>
@@ -1136,6 +1342,7 @@ export default function App() {
             onGrammarDoubleClick={() => setGrammarModal(true)}
             showHint={showHint}
             onDismissHint={() => setShowHint(false)}
+            onBack={() => { setScreen("chapters"); setTab("home"); }}
           />
         )}
         {tab === "flashcards" && (
@@ -1146,7 +1353,7 @@ export default function App() {
               supabase
                 .from("flashcards")
                 .delete()
-                .eq("session_id", getSessionId())
+                .eq("session_id", user.id)
                 .eq("word", word)
                 .then(({ error }) => { if (error) console.warn("[flashcards] delete error:", error.message); });
             }}
@@ -1156,7 +1363,7 @@ export default function App() {
               supabase
                 .from("flashcards")
                 .update(updates)
-                .eq("session_id", getSessionId())
+                .eq("session_id", user.id)
                 .eq("word", card.word)
                 .then(({ error }) => { if (error) console.warn("[flashcards] rate error:", error.message); });
             }}
@@ -1179,7 +1386,7 @@ export default function App() {
             key={t.key}
             onClick={() => {
               setTab(t.key);
-              if (t.key === "home" && screen !== "exercise") setScreen("chapters");
+              if (t.key === "home") setScreen("chapters");
             }}
             style={{
               flex: 1,
