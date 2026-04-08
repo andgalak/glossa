@@ -283,6 +283,55 @@ function WordSpan({ text, onSave }) {
   );
 }
 
+// ── Loading Screen ────────────────────────────────────────────────────────────
+const LOADING_MESSAGES = [
+  "Bribing the muses for better sentences…",
+  "Conjugating verbs at an alarming rate…",
+  "Consulting ancient Athenian scrolls…",
+  "Arguing with a Greek grandmother about grammar…",
+  "Translating Homer's grocery list…",
+  "Asking Socrates what the answer is…",
+  "Polishing the accusative case…",
+  "Teaching the subjunctive to behave…",
+  "Stealing fire from the gods of grammar…",
+  "Running through Athens without shoes…",
+];
+
+function LoadingScreen() {
+  const [msgIdx, setMsgIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setMsgIdx(i => (i + 1) % LOADING_MESSAGES.length);
+        setVisible(true);
+      }, 400);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div style={{ minHeight: "calc(100vh - 62px)", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: sans, gap: "1.5rem" }}>
+      <div style={{ fontFamily: serif, fontSize: "2rem", fontWeight: 600, color: C.green, letterSpacing: "-0.02em" }}>Glōssa</div>
+      <div style={{ opacity: visible ? 1 : 0, transition: "opacity 0.4s ease", fontSize: "0.875rem", color: C.soft, textAlign: "center", maxWidth: 280, lineHeight: 1.6 }}>
+        {LOADING_MESSAGES[msgIdx]}
+      </div>
+      <div style={{ width: 120, height: 3, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+        <div style={{
+          height: "100%",
+          width: "40%",
+          background: C.green,
+          borderRadius: 2,
+          animation: "glossaSlide 1.2s ease-in-out infinite alternate",
+        }} />
+      </div>
+      <style>{`@keyframes glossaSlide { from { margin-left: 0 } to { margin-left: 60% } }`}</style>
+    </div>
+  );
+}
+
 // ── Screens ───────────────────────────────────────────────────────────────────
 
 function Welcome({ onStart }) {
@@ -396,7 +445,7 @@ function LevelPicker({ onSelect, onBack }) {
   );
 }
 
-function ChapterMap({ chapters, level, lang, firstName, onSelect, onSignOut }) {
+function ChapterMap({ chapters, level, lang, user, onSelect, onSignOut }) {
   const visibleChapters = chapters.filter(ch => {
     if (level?.code === "A1") return ch.id >= 1 && ch.id <= 8;
     if (level?.code === "A2") return ch.id >= 9 && ch.id <= 16;
@@ -407,8 +456,8 @@ function ChapterMap({ chapters, level, lang, firstName, onSelect, onSignOut }) {
     <div style={{ maxWidth: 580, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
         <div>
-          {firstName && (
-            <div style={{ fontSize: "0.8rem", color: C.muted, marginBottom: "0.3rem" }}>Welcome back, {firstName}</div>
+          {user?.user_metadata?.first_name && (
+            <div style={{ fontSize: "0.78rem", color: C.muted, marginBottom: "0.2rem" }}>Welcome back, {user.user_metadata.first_name}</div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.3rem" }}>
             <span style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, color: C.text }}>{lang?.name}</span>
@@ -1415,7 +1464,7 @@ export default function App() {
             }))}
             level={level}
             lang={lang}
-            firstName={user?.user_metadata?.first_name}
+            user={user}
             onSelect={goToExercise}
             onSignOut={() => supabase.auth.signOut()}
           />
@@ -1432,9 +1481,7 @@ export default function App() {
           </div>
         )}
         {tab === "home" && screen === "exercise" && loading && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 62px)", fontFamily: sans, color: C.soft, fontSize: "0.95rem" }}>
-            Generating sentences…
-          </div>
+          <LoadingScreen />
         )}
         {tab === "home" && screen === "exercise" && !loading && !s && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 62px)", fontFamily: sans, color: C.soft, fontSize: "0.95rem", gap: "1rem" }}>
