@@ -18,6 +18,7 @@ const sans = "'DM Sans', system-ui, sans-serif";
 
 export default function AuthScreen() {
   const [mode, setMode] = useState("signin"); // signin | signup
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -31,7 +32,7 @@ export default function AuthScreen() {
     setBusy(true);
 
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: name } } });
       if (error) {
         setError(error.message);
       } else {
@@ -73,6 +74,23 @@ export default function AuthScreen() {
             </div>
           )}
 
+          {mode === "signup" && (
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 500, color: C.soft, marginBottom: "0.4rem" }}>
+                First name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                autoFocus
+                style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0.7rem 0.9rem", fontSize: "0.95rem", fontFamily: sans, outline: "none", background: C.bg, color: C.text }}
+                onFocus={e => (e.target.style.borderColor = C.green)}
+                onBlur={e => (e.target.style.borderColor = C.border)}
+              />
+            </div>
+          )}
+
           <div style={{ marginBottom: "1rem" }}>
             <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 500, color: C.soft, marginBottom: "0.4rem" }}>
               Email
@@ -82,7 +100,7 @@ export default function AuthScreen() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              autoFocus
+              autoFocus={mode === "signin"}
               style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0.7rem 0.9rem", fontSize: "0.95rem", fontFamily: sans, outline: "none", background: C.bg, color: C.text }}
               onFocus={e => (e.target.style.borderColor = C.green)}
               onBlur={e => (e.target.style.borderColor = C.border)}

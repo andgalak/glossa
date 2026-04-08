@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase.js";
-import { sm2, weightedPick } from "./lib/sm2.js";
+import { sm2 } from "./lib/sm2.js";
 import AuthScreen from "./components/AuthScreen.jsx";
 
 // ── Fonts ────────────────────────────────────────────────────────────────────
@@ -396,7 +396,7 @@ function LevelPicker({ onSelect, onBack }) {
   );
 }
 
-function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
+function ChapterMap({ chapters, level, lang, firstName, onSelect, onSignOut }) {
   const visibleChapters = chapters.filter(ch => {
     if (level?.code === "A1") return ch.id >= 1 && ch.id <= 8;
     if (level?.code === "A2") return ch.id >= 9 && ch.id <= 16;
@@ -407,6 +407,9 @@ function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
     <div style={{ maxWidth: 580, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
         <div>
+          {firstName && (
+            <div style={{ fontSize: "0.8rem", color: C.muted, marginBottom: "0.3rem" }}>Welcome back, {firstName}</div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.3rem" }}>
             <span style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, color: C.text }}>{lang?.name}</span>
             <span style={{
@@ -812,15 +815,33 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
   );
 }
 
+function getDueCards(cards) {
+  const now = new Date();
+  const due = cards.filter(c => !c.retired && new Date(c.due_date) <= now);
+  if (due.length > 0) return due;
+  const active = cards.filter(c => !c.retired);
+  if (active.length === 0) return [];
+  return [active.sort((a, b) => new Date(a.due_date) - new Date(b.due_date))[0]];
+}
+
 function FlashcardDeck({ cards, onDelete, onRate }) {
   const [mode, setMode] = useState("deck"); // deck | review
-  const [card, setCard] = useState(null);
+  const [queue, setQueue] = useState([]);
+  const [queueIdx, setQueueIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
   const activeCards = cards.filter(c => !c.retired);
+  const dueCards = getDueCards(cards);
+
+  function startReview() {
+    setQueue(getDueCards(cards));
+    setQueueIdx(0);
+    setFlipped(false);
+    setMode("review");
+  }
 
   function nextCard() {
-    setCard(weightedPick(cards));
+    setQueueIdx(i => i + 1);
     setFlipped(false);
   }
 
@@ -843,21 +864,39 @@ function FlashcardDeck({ cards, onDelete, onRate }) {
           <div style={{ color: C.soft, fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "2rem" }}>
             Every card has been marked as too easy. Keep adding words from the exercises.
           </div>
-          <Btn onClick={() => { setMode("deck"); setCard(null); setFlipped(false); }} variant="ghost">Back to deck</Btn>
+          <Btn onClick={() => setMode("deck")} variant="ghost">Back to deck</Btn>
         </div>
       );
     }
-    const current = card ?? weightedPick(cards);
+
+    // Queue exhausted — all caught up
+    if (queueIdx >= queue.length) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const dueTomorrow = activeCards.filter(c => new Date(c.due_date) < tomorrow).length;
+      return (
+        <div style={{ maxWidth: 520, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center", fontFamily: sans }}>
+          <div style={{ fontFamily: serif, fontSize: "1.4rem", color: C.green, marginBottom: "0.5rem" }}>All caught up!</div>
+          <div style={{ color: C.soft, fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "2rem" }}>
+            {dueTomorrow > 0 ? `${dueTomorrow} card${dueTomorrow === 1 ? "" : "s"} due tomorrow.` : "Nothing due tomorrow either. Keep adding words."}
+          </div>
+          <Btn onClick={() => setMode("deck")} variant="ghost">Back to deck</Btn>
+        </div>
+      );
+    }
+
+    const current = queue[queueIdx];
     return (
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "2.5rem 1.5rem", fontFamily: sans }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2.5rem" }}>
           <button
-            onClick={() => { setMode("deck"); setCard(null); setFlipped(false); }}
+            onClick={() => setMode("deck")}
             style={{ background: "none", border: "none", color: C.soft, cursor: "pointer", fontFamily: sans, fontSize: "0.875rem" }}
           >
             ← Back to deck
           </button>
-          <span style={{ color: C.muted, fontSize: "0.82rem" }}>{activeCards.length} active</span>
+          <span style={{ color: C.muted, fontSize: "0.82rem" }}>{queueIdx + 1} / {queue.length}</span>
         </div>
 
         {/* Card */}
@@ -958,6 +997,7 @@ function FlashcardDeck({ cards, onDelete, onRate }) {
   }
 
   // Deck list view
+  const dueCount = dueCards.length;
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "2.5rem 1.5rem", fontFamily: sans }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem" }}>
@@ -965,8 +1005,8 @@ function FlashcardDeck({ cards, onDelete, onRate }) {
           <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600, color: C.text }}>Your Deck</div>
           <div style={{ fontSize: "0.8rem", color: C.soft, marginTop: "0.2rem" }}>{cards.length} {cards.length === 1 ? "word" : "words"} saved</div>
         </div>
-        <Btn onClick={() => { setMode("review"); setCard(null); setFlipped(false); }} small>
-          {activeCards.length > 0 ? `Review (${activeCards.length})` : "Review"}
+        <Btn onClick={startReview} small style={dueCount === 0 ? { color: C.muted } : {}}>
+          {`Review (${dueCount} due)`}
         </Btn>
       </div>
 
@@ -1010,6 +1050,20 @@ export default function App() {
   const [screen, setScreen] = useState("welcome"); // welcome | language | level | chapters | exercise
   const [lang, setLang] = useState(null);
   const [level, setLevel] = useState(null);
+
+  // Restore session from localStorage after auth resolves
+  useEffect(() => {
+    if (user === undefined || user === null) return;
+    try {
+      const savedLang = localStorage.getItem("glossa_lang");
+      const savedLevel = localStorage.getItem("glossa_level");
+      if (savedLang && savedLevel) {
+        setLang(JSON.parse(savedLang));
+        setLevel(JSON.parse(savedLevel));
+        setScreen("chapters");
+      }
+    } catch {}
+  }, [user?.id]);
   const [chapter, setChapter] = useState(null);
   const [sIdx, setSIdx] = useState(0);
   const [input, setInput] = useState("");
@@ -1036,11 +1090,19 @@ export default function App() {
         setFlashcards(null);
         setProgress({});
         setSentences([]);
+        setLang(null);
+        setLevel(null);
         setScreen("welcome");
+        localStorage.removeItem("glossa_lang");
+        localStorage.removeItem("glossa_level");
       }
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Persist lang/level to localStorage whenever they change
+  useEffect(() => { if (lang) localStorage.setItem("glossa_lang", JSON.stringify(lang)); }, [lang]);
+  useEffect(() => { if (level) localStorage.setItem("glossa_level", JSON.stringify(level)); }, [level]);
 
   const s = sentences[sIdx % Math.max(sentences.length, 1)];
 
@@ -1353,6 +1415,7 @@ export default function App() {
             }))}
             level={level}
             lang={lang}
+            firstName={user?.user_metadata?.first_name}
             onSelect={goToExercise}
             onSignOut={() => supabase.auth.signOut()}
           />
