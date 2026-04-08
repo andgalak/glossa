@@ -267,7 +267,7 @@ function WordSpan({ text, onSave }) {
           <span
             key={i}
             onDoubleClick={() => onSave(word)}
-            onTouchStart={() => { pressTimer = setTimeout(() => onSave(word), 300); }}
+            onTouchStart={() => { pressTimer = setTimeout(() => onSave(word), 500); }}
             onTouchEnd={() => { clearTimeout(pressTimer); }}
             onTouchMove={() => { clearTimeout(pressTimer); }}
             title="Double-click to save to flashcards"
@@ -501,6 +501,7 @@ function ChapterMap({ chapters, level, lang, user, onSelect, onSignOut }) {
                 padding: "1.1rem 1.25rem",
                 display: "flex",
                 alignItems: "center",
+                flexWrap: "wrap",
                 gap: "1rem",
                 cursor: "pointer",
                 textAlign: "left",
@@ -554,10 +555,7 @@ function ChapterMap({ chapters, level, lang, user, onSelect, onSignOut }) {
 
 function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, correct, exact, typo, prefixMatch, inputColor, showTrans, setShowTrans, onSubmit, onNext, onSaveWord, onGrammarDoubleClick, showHint, onDismissHint, onBack }) {
   const pct = total > 0 ? (sIdx / total) : 0;
-  const isTouchDevice = window.matchMedia?.("(hover: none)")?.matches ?? false;
-  const hintText = isTouchDevice
-    ? "Tap and hold any word in the sentence to save it to your flashcard deck."
-    : "Double-click any word in the sentence to save it to your flashcard deck.";
+  const isMobile = window.matchMedia?.("(hover: none)")?.matches ?? false;
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", minHeight: "calc(100vh - 62px)", display: "flex", flexDirection: "column" }}>
 
@@ -590,11 +588,11 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ display: "flex", gap: "2.5rem", alignItems: "flex-start", flex: 1 }}>
+      {/* Two-column layout (single column on mobile) */}
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "2.5rem", alignItems: "flex-start", flex: 1 }}>
 
         {/* Left: Sentence + interaction */}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
 
           {/* Sentence */}
           <div style={{
@@ -748,8 +746,8 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
             </div>
           )}
 
-          {/* First-use double-click hint */}
-          {showHint && (
+          {/* First-use hint — desktop only */}
+          {showHint && !isMobile && (
             <div style={{
               marginTop: "1.75rem",
               background: C.amberLight,
@@ -764,7 +762,7 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
               <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
                 <span style={{ fontSize: "1.1rem" }}>💡</span>
                 <span style={{ fontSize: "0.82rem", color: C.amber, lineHeight: 1.5 }}>
-                  <strong>Tip:</strong> {hintText}
+                  <strong>Tip:</strong> Double-click any word in the sentence to save it to your flashcard deck.
                 </span>
               </div>
               <button
@@ -786,79 +784,92 @@ function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, cor
 
       </div>{/* end padding wrapper */}
 
-        {/* Right: Grammar Panel */}
-        <div
-          style={{
-            width: 210,
-            flexShrink: 0,
+        {/* Right: Grammar Panel — desktop sidebar / mobile inline card */}
+        {isMobile ? (
+          <div style={{
             background: C.greenLight,
             border: `1px solid #C0D8CA`,
-            borderRadius: 14,
-            padding: "1.35rem 1.25rem",
-            position: "sticky",
-            top: "1.5rem",
-          }}
-        >
-          <div style={{
-            fontSize: "0.68rem",
-            fontWeight: 600,
-            letterSpacing: "0.1em",
-            color: C.greenMid,
-            textTransform: "uppercase",
-            marginBottom: "0.6rem",
+            borderRadius: 10,
+            padding: "0.85rem 1rem",
+            marginTop: "1.25rem",
           }}>
-            Grammar
+            <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "0.92rem", color: C.text, marginBottom: "0.35rem" }}>
+              {s.grammarLabel}
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#3C6B53", lineHeight: 1.6 }}>
+              {s.grammarShort}
+            </div>
           </div>
-
-          {/* Grammar label - double-click for modal */}
+        ) : (
           <div
-            onDoubleClick={onGrammarDoubleClick}
-            title="Double-click for full overview"
             style={{
-              fontFamily: serif,
+              width: 210,
+              flexShrink: 0,
+              background: C.greenLight,
+              border: `1px solid #C0D8CA`,
+              borderRadius: 14,
+              padding: "1.35rem 1.25rem",
+              position: "sticky",
+              top: "1.5rem",
+            }}
+          >
+            <div style={{
+              fontSize: "0.68rem",
               fontWeight: 600,
-              fontSize: "1.05rem",
-              color: C.text,
-              marginBottom: "0.85rem",
-              lineHeight: 1.35,
-              cursor: "default",
-              borderBottom: `1px dashed #B0CEBC`,
-              paddingBottom: "0.85rem",
-            }}
-          >
-            {s.grammarLabel}
-          </div>
-
-          <div style={{
-            fontSize: "0.825rem",
-            color: "#3C6B53",
-            lineHeight: 1.65,
-            marginBottom: "1.25rem",
-          }}>
-            {s.grammarShort}
-          </div>
-
-          <button
-            onDoubleClick={onGrammarDoubleClick}
-            onClick={onGrammarDoubleClick}
-            style={{
-              background: "none",
-              border: `1px solid #B0CEBC`,
-              borderRadius: 6,
-              padding: "0.38rem 0.75rem",
-              fontSize: "0.72rem",
+              letterSpacing: "0.1em",
               color: C.greenMid,
-              cursor: "pointer",
-              fontFamily: sans,
-              width: "100%",
-              transition: "background 0.15s",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = "rgba(43,95,71,0.08)")}
-            onMouseLeave={e => (e.currentTarget.style.background = "none")}
-          >
-            Full overview →
-          </button>
-        </div>
+              textTransform: "uppercase",
+              marginBottom: "0.6rem",
+            }}>
+              Grammar
+            </div>
+            <div
+              onDoubleClick={onGrammarDoubleClick}
+              title="Double-click for full overview"
+              style={{
+                fontFamily: serif,
+                fontWeight: 600,
+                fontSize: "1.05rem",
+                color: C.text,
+                marginBottom: "0.85rem",
+                lineHeight: 1.35,
+                cursor: "default",
+                borderBottom: `1px dashed #B0CEBC`,
+                paddingBottom: "0.85rem",
+              }}
+            >
+              {s.grammarLabel}
+            </div>
+            <div style={{
+              fontSize: "0.825rem",
+              color: "#3C6B53",
+              lineHeight: 1.65,
+              marginBottom: "1.25rem",
+            }}>
+              {s.grammarShort}
+            </div>
+            <button
+              onDoubleClick={onGrammarDoubleClick}
+              onClick={onGrammarDoubleClick}
+              style={{
+                background: "none",
+                border: `1px solid #B0CEBC`,
+                borderRadius: 6,
+                padding: "0.38rem 0.75rem",
+                fontSize: "0.72rem",
+                color: C.greenMid,
+                cursor: "pointer",
+                fontFamily: sans,
+                width: "100%",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(43,95,71,0.08)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            >
+              Full overview →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
