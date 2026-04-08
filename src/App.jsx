@@ -502,7 +502,7 @@ function ChapterMap({ chapters, level, lang, onSelect, onSignOut }) {
 
 function ExerciseView({ s, chapter, sIdx, total, input, setInput, submitted, correct, exact, typo, prefixMatch, inputColor, showTrans, setShowTrans, onSubmit, onNext, onSaveWord, onGrammarDoubleClick, showHint, onDismissHint, onBack }) {
   const pct = total > 0 ? (sIdx / total) : 0;
-  const isTouchDevice = window.matchMedia("(hover: none)").matches;
+  const isTouchDevice = window.matchMedia?.("(hover: none)")?.matches ?? false;
   const hintText = isTouchDevice
     ? "Tap and hold any word in the sentence to save it to your flashcard deck."
     : "Double-click any word in the sentence to save it to your flashcard deck.";
@@ -1338,6 +1338,12 @@ export default function App() {
         {tab === "home" && screen === "exercise" && loading && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 62px)", fontFamily: sans, color: C.soft, fontSize: "0.95rem" }}>
             Generating sentences…
+          </div>
+        )}
+        {tab === "home" && screen === "exercise" && !loading && !s && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 62px)", fontFamily: sans, color: C.soft, fontSize: "0.95rem", gap: "1rem" }}>
+            <div>Could not load sentences.</div>
+            <Btn variant="ghost" onClick={() => { setScreen("chapters"); setTab("home"); }}>← Back to chapters</Btn>
           </div>
         )}
         {tab === "home" && screen === "exercise" && !loading && s && (
