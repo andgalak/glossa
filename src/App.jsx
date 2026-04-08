@@ -1120,7 +1120,7 @@ export default function App() {
     setTimeout(() => setToast(null), 2200);
   }
 
-  function saveWord(word) {
+  async function saveWord(word) {
     if (!word || word.length < 2) return;
     if ((flashcards ?? []).find(f => f.word === word)) {
       fireToast(`"${word}" is already in your deck`);
@@ -1129,7 +1129,7 @@ export default function App() {
     const newCard = {
       session_id: user.id,
       word,
-      wordTranslation: "",
+      wordTranslation: "…",
       contextGreek: `${s.before} ${word} ${s.after}`.trim(),
       contextEnglish: s.naturalTranslation ?? s.translation ?? "",
       translation: s.naturalTranslation ?? s.translation ?? "",
@@ -1141,7 +1141,7 @@ export default function App() {
       retired: false,
       due_date: new Date().toISOString(),
     };
-    // Optimistic update
+    // Optimistic update with placeholder
     setFlashcards(prev => [...(prev ?? []), newCard]);
     fireToast(`"${word}" saved to flashcards ✓`);
     supabase
@@ -1150,6 +1150,31 @@ export default function App() {
       .then(({ error }) => {
         if (error) console.warn("[flashcards] save error:", error.message);
       });
+
+    // Background: look up per-word translation, then patch local state + Supabase
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word }),
+      });
+      if (res.ok) {
+        const { translation: wordTranslation } = await res.json();
+        setFlashcards(prev => (prev ?? []).map(c =>
+          c.word === word ? { ...c, wordTranslation } : c
+        ));
+        supabase
+          .from("flashcards")
+          .update({ wordTranslation })
+          .eq("session_id", user.id)
+          .eq("word", word)
+          .then(({ error }) => {
+            if (error) console.warn("[flashcards] wordTranslation update error:", error.message);
+          });
+      }
+    } catch (err) {
+      console.warn("[saveWord] translation lookup failed:", err.message);
+    }
   }
 
   async function goToExercise(ch) {

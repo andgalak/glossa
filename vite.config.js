@@ -35,6 +35,35 @@ export default defineConfig(({ mode }) => {
               }
             })
           })
+
+          server.middlewares.use('/api/translate', (req, res) => {
+            if (req.method !== 'POST') {
+              res.writeHead(405)
+              res.end('Method Not Allowed')
+              return
+            }
+            let body = ''
+            req.on('data', chunk => (body += chunk))
+            req.on('end', async () => {
+              try {
+                const { word } = JSON.parse(body)
+                const Anthropic = (await import('@anthropic-ai/sdk')).default
+                const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+                const message = await client.messages.create({
+                  model: 'claude-haiku-4-5',
+                  max_tokens: 50,
+                  messages: [{ role: 'user', content: `Translate this single Greek word to English: "${word}". Reply with only the English translation, 1-4 words maximum. No punctuation, no explanation.` }],
+                })
+                const translation = message.content[0].text.trim()
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ translation }))
+              } catch (err) {
+                console.error('[api/translate dev]', err)
+                res.writeHead(500, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: err.message }))
+              }
+            })
+          })
         },
       },
     ],
