@@ -1050,20 +1050,6 @@ export default function App() {
   const [screen, setScreen] = useState("welcome"); // welcome | language | level | chapters | exercise
   const [lang, setLang] = useState(null);
   const [level, setLevel] = useState(null);
-
-  // Restore session from localStorage after auth resolves
-  useEffect(() => {
-    if (user === undefined || user === null) return;
-    try {
-      const savedLang = localStorage.getItem("glossa_lang");
-      const savedLevel = localStorage.getItem("glossa_level");
-      if (savedLang && savedLevel) {
-        setLang(JSON.parse(savedLang));
-        setLevel(JSON.parse(savedLevel));
-        setScreen("chapters");
-      }
-    } catch {}
-  }, [user?.id]);
   const [chapter, setChapter] = useState(null);
   const [sIdx, setSIdx] = useState(0);
   const [input, setInput] = useState("");
@@ -1099,6 +1085,20 @@ export default function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Restore session from localStorage after auth resolves
+  useEffect(() => {
+    if (user === undefined || user === null) return;
+    try {
+      const savedLang = localStorage.getItem("glossa_lang");
+      const savedLevel = localStorage.getItem("glossa_level");
+      if (savedLang && savedLevel) {
+        setLang(JSON.parse(savedLang));
+        setLevel(JSON.parse(savedLevel));
+        setScreen("chapters");
+      }
+    } catch {}
+  }, [user?.id]);
 
   // Persist lang/level to localStorage whenever they change
   useEffect(() => { if (lang) localStorage.setItem("glossa_lang", JSON.stringify(lang)); }, [lang]);
