@@ -887,9 +887,14 @@ function FlashcardDeck({ cards, onDelete, onRate }) {
             <div style={{ fontFamily: serif, fontSize: "2.25rem", color: C.text }}>{current.word}</div>
           ) : (
             <>
-              <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600, color: C.text, marginBottom: "1.25rem" }}>{current.translation}</div>
-              <div style={{ fontSize: "0.85rem", color: C.soft, fontStyle: "italic", lineHeight: 1.65, marginBottom: "0.25rem" }}>
-                {current.context?.replace("___", current.word)}
+              <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600, color: C.text, marginBottom: "1.25rem" }}>
+                {current.wordTranslation || "—"}
+              </div>
+              <div style={{ fontSize: "0.88rem", color: C.text, lineHeight: 1.7, marginBottom: "0.4rem" }}>
+                {current.contextGreek || current.context?.replace("___", current.word)}
+              </div>
+              <div style={{ fontSize: "0.82rem", color: C.soft, fontStyle: "italic", lineHeight: 1.65, marginBottom: "0.25rem" }}>
+                {current.contextEnglish || current.translation}
               </div>
               {current.chapter && (
                 <div style={{ fontSize: "0.72rem", color: C.muted, marginTop: "0.5rem" }}>{current.chapter}</div>
@@ -981,7 +986,7 @@ function FlashcardDeck({ cards, onDelete, onRate }) {
           >
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: serif, fontWeight: 600, color: C.text, fontSize: "1.05rem" }}>{card.word}</div>
-              <div style={{ fontSize: "0.78rem", color: C.soft, marginTop: "0.2rem", fontStyle: "italic" }}>{card.context}</div>
+              <div style={{ fontSize: "0.78rem", color: C.soft, marginTop: "0.2rem", fontStyle: "italic" }}>{card.contextGreek || card.context?.replace("___", card.word)}</div>
               {card.chapter && (
                 <div style={{ fontSize: "0.7rem", color: C.muted, marginTop: "0.15rem" }}>{card.chapter}</div>
               )}
@@ -1124,6 +1129,9 @@ export default function App() {
     const newCard = {
       session_id: user.id,
       word,
+      wordTranslation: "",
+      contextGreek: `${s.before} ${word} ${s.after}`.trim(),
+      contextEnglish: s.naturalTranslation ?? s.translation ?? "",
       translation: s.naturalTranslation ?? s.translation ?? "",
       context: `${s.before} ___ ${s.after}`,
       chapter: chapter?.theme ?? "",
