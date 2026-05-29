@@ -28,7 +28,7 @@ export default function Deck({ cards, setCards, fireToast }) {
 
   if (cards.length === 0) {
     return (
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center" }}>
+      <div style={{ width: "100%", maxWidth: 720, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center", boxSizing: "border-box" }}>
         <div style={{ fontFamily: serif, fontSize: "1.4rem", marginBottom: "0.6rem" }}>Your deck is empty</div>
         <div style={{ color: C.soft, fontSize: "0.9rem", lineHeight: 1.7 }}>Add some words to get started.</div>
       </div>
@@ -36,7 +36,7 @@ export default function Deck({ cards, setCards, fireToast }) {
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
+    <div style={{ width: "100%", maxWidth: 720, margin: "0 auto", padding: "2.5rem 1.5rem", boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
         <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600 }}>Deck</div>
         <span style={{ fontSize: "0.8rem", color: C.soft }}>{cards.length} card{cards.length === 1 ? "" : "s"}</span>

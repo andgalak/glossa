@@ -124,7 +124,7 @@ export default function CardsApp() {
         </nav>
       </header>
 
-      <main style={{ flex: 1, paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <main style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom)" }}>
         {cards === null ? (
           <div style={{ maxWidth: 720, margin: "0 auto", padding: "4rem 1.5rem", color: C.soft, fontSize: "0.9rem" }}>Loading…</div>
         ) : tab === "add" ? (

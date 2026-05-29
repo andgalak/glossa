@@ -77,7 +77,7 @@ export default function AddWords({ userId, onSaved, onError }) {
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
+    <div style={{ width: "100%", maxWidth: 720, margin: "0 auto", padding: "2.5rem 1.5rem", boxSizing: "border-box" }}>
       <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600, marginBottom: "0.3rem" }}>Add words</div>
       <div style={{ color: C.soft, fontSize: "0.88rem", marginBottom: "1.5rem", lineHeight: 1.6 }}>
         Paste words one per line, in English or Greek. We fill in the translation, part of speech, gender, and an example sentence. You can fix anything before saving.

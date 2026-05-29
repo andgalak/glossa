@@ -85,11 +85,15 @@ export default function Review({ cards, setCards, onDone }) {
   const exampleSecondary = card.example_translation;
 
   return (
-    <div style={{ maxWidth: 520, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem" }}>
+    <div style={{
+      width: "100%", maxWidth: 560, margin: "0 auto", padding: "1.25rem 1.25rem 1.5rem",
+      flex: 1, boxSizing: "border-box",
+      display: "flex", flexDirection: "column",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexShrink: 0 }}>
         <button
           onClick={() => setDir(d => d === "en2gr" ? "gr2en" : "en2gr")}
-          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "0.35rem 0.75rem", fontSize: "0.75rem", color: C.soft, cursor: "pointer", fontFamily: sans }}
+          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "0.45rem 0.8rem", fontSize: "0.78rem", color: C.soft, cursor: "pointer", fontFamily: sans }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = C.green)}
           onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
         >
@@ -101,67 +105,86 @@ export default function Review({ cards, setCards, onDone }) {
       <div
         onClick={() => setFlipped(v => !v)}
         style={{
+          flex: 1, minHeight: 240,
           background: C.surface, border: `1.5px solid ${C.border}`, borderRadius: 16,
-          padding: "3.25rem 2rem", textAlign: "center", cursor: "pointer", minHeight: 200,
+          padding: "2rem 1.5rem", textAlign: "center", cursor: "pointer",
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.06)", marginBottom: "1.5rem", userSelect: "none",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.06)", marginBottom: "1.25rem", userSelect: "none",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
         {!flipped ? (
-          <div style={{ fontFamily: serif, fontSize: "2rem" }}>{front || "—"}</div>
+          <>
+            <div style={{ fontFamily: serif, fontSize: "clamp(2rem, 9vw, 2.6rem)", lineHeight: 1.2 }}>{front || "—"}</div>
+            <div style={{ color: C.muted, fontSize: "0.8rem", marginTop: "1.5rem" }}>Tap to reveal</div>
+          </>
         ) : (
           <>
-            <div style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, marginBottom: "1rem" }}>{back || "—"}</div>
+            <div style={{ fontFamily: serif, fontSize: "clamp(1.6rem, 7vw, 2.1rem)", fontWeight: 600, marginBottom: "1rem", lineHeight: 1.2 }}>{back || "—"}</div>
             {examplePrimary && (
-              <div style={{ fontSize: "0.9rem", lineHeight: 1.6 }}>{examplePrimary}</div>
+              <div style={{ fontSize: "0.95rem", lineHeight: 1.6 }}>{examplePrimary}</div>
             )}
             {exampleSecondary && (
-              <div style={{ fontSize: "0.82rem", color: C.soft, fontStyle: "italic", lineHeight: 1.55, marginTop: "0.25rem" }}>{exampleSecondary}</div>
+              <div style={{ fontSize: "0.85rem", color: C.soft, fontStyle: "italic", lineHeight: 1.55, marginTop: "0.25rem" }}>{exampleSecondary}</div>
             )}
             {card.notes && (
-              <div style={{ fontSize: "0.75rem", color: C.amber, marginTop: "0.75rem", lineHeight: 1.5 }}>{card.notes}</div>
+              <div style={{ fontSize: "0.78rem", color: C.amber, marginTop: "0.85rem", lineHeight: 1.5 }}>{card.notes}</div>
             )}
           </>
         )}
       </div>
 
-      {!flipped ? (
-        <div style={{ textAlign: "center", color: C.muted, fontSize: "0.8rem" }}>Tap the card to reveal</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            {RATINGS.map(({ label, rating, primary }) => (
-              <button
-                key={label}
-                onClick={() => rate(card, rating)}
-                style={{
-                  flex: 1, padding: "0.7rem", borderRadius: 8,
-                  border: `1.5px solid ${primary ? C.green : C.border}`,
-                  background: primary ? C.green : C.surface, color: primary ? "#fff" : C.text,
-                  fontFamily: sans, fontSize: "0.875rem", cursor: "pointer", fontWeight: 500,
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+      {/* Action area: fixed height so flipping does not shift the layout. */}
+      <div style={{ flexShrink: 0, minHeight: 132, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+        {!flipped ? (
           <button
-            onClick={() => rate(card, 5)}
-            style={{ width: "100%", padding: "0.55rem", borderRadius: 8, border: `1px solid ${C.border}`, background: "none", color: C.muted, fontFamily: sans, fontSize: "0.78rem", cursor: "pointer" }}
-            onMouseEnter={e => (e.currentTarget.style.color = C.soft)}
-            onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+            onClick={() => setFlipped(true)}
+            style={{
+              width: "100%", padding: "1rem", borderRadius: 10,
+              border: `1.5px solid ${C.green}`, background: C.green, color: "#fff",
+              fontFamily: sans, fontSize: "1rem", fontWeight: 600, cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
           >
-            Too easy — don't show again
+            Reveal answer
           </button>
-        </div>
-      )}
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            <div style={{ display: "flex", gap: "0.6rem" }}>
+              {RATINGS.map(({ label, rating, primary }) => (
+                <button
+                  key={label}
+                  onClick={() => rate(card, rating)}
+                  style={{
+                    flex: 1, padding: "1rem 0.5rem", borderRadius: 10,
+                    border: `1.5px solid ${primary ? C.green : C.border}`,
+                    background: primary ? C.green : C.surface, color: primary ? "#fff" : C.text,
+                    fontFamily: sans, fontSize: "1rem", cursor: "pointer", fontWeight: 600,
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => rate(card, 5)}
+              style={{ width: "100%", padding: "0.7rem", borderRadius: 10, border: `1px solid ${C.border}`, background: "none", color: C.muted, fontFamily: sans, fontSize: "0.82rem", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+              onMouseEnter={e => (e.currentTarget.style.color = C.soft)}
+              onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+            >
+              Too easy — don't show again
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function Empty({ title, body, onDone, action }) {
   return (
-    <div style={{ maxWidth: 520, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center" }}>
+    <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center", boxSizing: "border-box" }}>
       <div style={{ fontFamily: serif, fontSize: "1.4rem", color: C.green, marginBottom: "0.5rem" }}>{title}</div>
       <div style={{ color: C.soft, fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "2rem" }}>{body}</div>
       <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
