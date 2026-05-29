@@ -6,6 +6,33 @@ export function detectScript(word) {
   return GREEK_RE.test(word) ? "greek" : "latin";
 }
 
+// Strip accents and lowercase for tolerant matching.
+function bare(s) {
+  return (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// Resolve gender to one of ο / η / το (or "").
+// First try the model's gender field (accepting many word-forms), then fall
+// back to reading the leading definite article off the Greek form itself.
+export function resolveGender(rawGender, greek) {
+  const g = bare(rawGender);
+  if (["ο", "o", "masc", "masculine", "m", "αρσενικο"].includes(g)) return "ο";
+  if (["η", "h", "fem", "feminine", "f", "θηλυκο"].includes(g)) return "η";
+  if (["το", "to", "neut", "neuter", "n", "ουδετερο"].includes(g)) return "το";
+
+  // Fall back to the article that prefixes the Greek dictionary form.
+  const first = bare(greek).split(/\s+/)[0];
+  if (first === "ο") return "ο";
+  if (first === "η") return "η";
+  if (first === "το") return "το";
+  return "";
+}
+
 const SYSTEM_PROMPT = `You are a passionate, slightly chaotic Greek tutor who genuinely believes learning Greek is one of life's great joys and will not shut up about it. You will be given a single word in either English or Greek. Produce a flashcard for a serious A2-level adult learner. Greek conventions you must follow: give nouns in the nominative singular with their definite article and report the gender; give verbs in the first person singular present (the dictionary convention); use natural spoken Greek, not stiff textbook Greek. Write one short, vivid example sentence in Greek that actually uses the target word, around A2 difficulty, then translate it cleanly into English. If the word is irregular or has a register worth flagging, add a one-line note, otherwise leave notes empty. Output ONLY a valid JSON object with these exact fields: english, greek, partOfSpeech, gender, exampleGreek, exampleTranslation, notes. No preamble, no markdown fences.`;
 
 export async function generateCard(word) {
@@ -39,16 +66,13 @@ export async function generateCard(word) {
     throw err;
   }
 
-  const normGender = (g) => {
-    const v = (g ?? "").toString().trim();
-    return ["ο", "η", "το"].includes(v) ? v : "";
-  };
+  const greek = (parsed.greek ?? "").toString().trim();
 
   return {
     english: (parsed.english ?? "").toString().trim(),
-    greek: (parsed.greek ?? "").toString().trim(),
+    greek,
     partOfSpeech: (parsed.partOfSpeech ?? "").toString().trim(),
-    gender: normGender(parsed.gender),
+    gender: resolveGender(parsed.gender, greek),
     exampleGreek: (parsed.exampleGreek ?? "").toString().trim(),
     exampleTranslation: (parsed.exampleTranslation ?? "").toString().trim(),
     notes: (parsed.notes ?? "").toString().trim(),
