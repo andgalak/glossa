@@ -49,7 +49,7 @@ export async function insertCards(cards) {
     .select();
   if (error) {
     console.warn("[vocab_cards] insert error:", error.message);
-    return [];
+    throw new Error(error.message);
   }
   return data ?? [];
 }

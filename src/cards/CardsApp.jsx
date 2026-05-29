@@ -74,6 +74,7 @@ export default function CardsApp() {
         ) : tab === "add" ? (
           <AddWords
             onSaved={(saved) => { setCards(prev => [...(prev ?? []), ...saved]); fireToast(`${saved.length} card${saved.length === 1 ? "" : "s"} saved`); setTab("deck"); }}
+            onError={fireToast}
           />
         ) : tab === "deck" ? (
           <Deck cards={list} setCards={setCards} fireToast={fireToast} />

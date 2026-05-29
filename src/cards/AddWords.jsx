@@ -13,7 +13,7 @@ const blankRow = (input) => ({
   status: "pending", // pending | done | error
 });
 
-export default function AddWords({ onSaved }) {
+export default function AddWords({ onSaved, onError }) {
   const [text, setText] = useState("");
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -61,7 +61,15 @@ export default function AddWords({ onSaved }) {
     const toSave = rows.filter(r => r.status === "done");
     if (toSave.length === 0) return;
     setSaving(true);
-    const saved = await insertCards(toSave);
+    let saved;
+    try {
+      saved = await insertCards(toSave);
+    } catch (e) {
+      setSaving(false);
+      // Keep the rows so the user does not lose their generated cards.
+      onError?.(`Could not save: ${e.message}`);
+      return;
+    }
     setSaving(false);
     setRows([]);
     setText("");
