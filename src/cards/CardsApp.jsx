@@ -9,6 +9,14 @@ import CardsAuth, { SetPassword } from "./CardsAuth.jsx";
 
 ensureFonts();
 
+// Captured at import — before supabase-js asynchronously consumes and clears
+// the recovery token from the URL. Implicit-flow password-reset links arrive
+// as `#access_token=...&type=recovery`. Relying only on the PASSWORD_RECOVERY
+// event races against that clearing and is unreliable, so we also read the hash
+// directly here.
+const ARRIVED_VIA_RECOVERY =
+  typeof window !== "undefined" && window.location.hash.includes("type=recovery");
+
 const TABS = [
   { key: "add", label: "Add words" },
   { key: "deck", label: "Deck" },
@@ -17,7 +25,7 @@ const TABS = [
 
 export default function CardsApp() {
   const [user, setUser] = useState(undefined); // undefined = loading, null = signed out
-  const [recovery, setRecovery] = useState(false); // arrived via password-reset link
+  const [recovery, setRecovery] = useState(ARRIVED_VIA_RECOVERY); // arrived via password-reset link
   const [tab, setTab] = useState("add");
   const [cards, setCards] = useState(null); // null = loading
   const [toast, setToast] = useState(null);
@@ -53,6 +61,10 @@ export default function CardsApp() {
     setTimeout(() => setToast(null), 2200);
   }
 
+  // Recovery takes precedence over everything: show the set-password screen as
+  // soon as we know we arrived via a reset link, even while the session resolves.
+  if (recovery) return <SetPassword onDone={() => { setRecovery(false); fireToast("Password updated"); }} />;
+
   if (user === undefined) {
     return (
       <div style={{ fontFamily: sans, minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", color: C.soft, fontSize: "0.9rem" }}>
@@ -60,8 +72,6 @@ export default function CardsApp() {
       </div>
     );
   }
-
-  if (recovery) return <SetPassword onDone={() => { setRecovery(false); fireToast("Password updated"); }} />;
 
   if (user === null) return <CardsAuth />;
 
