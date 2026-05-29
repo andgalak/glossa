@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { C, serif, sans, ensureFonts } from "../tokens.js";
 import { supabase } from "../lib/supabase.js";
-import { loadCards } from "./cards.js";
+import { loadCards, claimAnonCards } from "./cards.js";
 import AddWords from "./AddWords.jsx";
 import Deck from "./Deck.jsx";
 import Review from "./Review.jsx";
-import CardsAuth from "./CardsAuth.jsx";
+import CardsAuth, { SetPassword } from "./CardsAuth.jsx";
 
 ensureFonts();
 
@@ -17,6 +17,7 @@ const TABS = [
 
 export default function CardsApp() {
   const [user, setUser] = useState(undefined); // undefined = loading, null = signed out
+  const [recovery, setRecovery] = useState(false); // arrived via password-reset link
   const [tab, setTab] = useState("add");
   const [cards, setCards] = useState(null); // null = loading
   const [toast, setToast] = useState(null);
@@ -24,17 +25,27 @@ export default function CardsApp() {
   // Track the Supabase auth session.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
       setUser(session?.user ?? null);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Load this user's deck once signed in; clear it on sign out.
+  // Load this user's deck once signed in; clear it on sign out. First claim
+  // any pre-account cards saved on this device so they carry over.
   useEffect(() => {
     if (!user?.id) { setCards(null); return; }
+    let cancelled = false;
     setCards(null);
-    loadCards(user.id).then(setCards);
+    (async () => {
+      const claimed = await claimAnonCards(user.id);
+      const list = await loadCards(user.id);
+      if (cancelled) return;
+      setCards(list);
+      if (claimed > 0) fireToast(`${claimed} earlier card${claimed === 1 ? "" : "s"} added to your account`);
+    })();
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   function fireToast(msg) {
@@ -49,6 +60,8 @@ export default function CardsApp() {
       </div>
     );
   }
+
+  if (recovery) return <SetPassword onDone={() => { setRecovery(false); fireToast("Password updated"); }} />;
 
   if (user === null) return <CardsAuth />;
 

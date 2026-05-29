@@ -1,5 +1,29 @@
 import { supabase } from "../lib/supabase.js";
 
+// Before accounts existed, cards were saved under a per-device anonymous id
+// kept in localStorage. After a user signs in, reassign any such cards on this
+// device to their account so nothing is lost. One-time: the key is cleared
+// after a successful claim. Must run while RLS still allows it (before the
+// owner-only policy migration). Returns the number of cards claimed.
+const ANON_KEY = "glossa_cards_anon_id";
+
+export async function claimAnonCards(userId) {
+  const anonId = localStorage.getItem(ANON_KEY);
+  if (!anonId || anonId === userId) return 0;
+
+  const { data, error } = await supabase
+    .from("vocab_cards")
+    .update({ user_id: userId })
+    .eq("user_id", anonId)
+    .select("id");
+  if (error) {
+    console.warn("[vocab_cards] claim error:", error.message);
+    return 0;
+  }
+  localStorage.removeItem(ANON_KEY);
+  return data?.length ?? 0;
+}
+
 // Maps a generation result (camelCase from the API) + edits to DB column names.
 // userId is the authenticated Supabase user id (vocab_cards.user_id).
 export function toRow(card, userId) {
