@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'node:path'
 
 export default defineConfig(({ mode }) => {
   // Load .env.local (and .env) so ANTHROPIC_API_KEY is available in the dev middleware
@@ -7,6 +8,14 @@ export default defineConfig(({ mode }) => {
   process.env.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY
 
   return {
+    build: {
+      rollupOptions: {
+        input: {
+          main: resolve(process.cwd(), 'index.html'),
+          flashcards: resolve(process.cwd(), 'flashcards.html'),
+        },
+      },
+    },
     plugins: [
       react(),
       {
@@ -30,6 +39,29 @@ export default defineConfig(({ mode }) => {
                 res.end(JSON.stringify(sentences))
               } catch (err) {
                 console.error('[api/generate dev]', err)
+                res.writeHead(500, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: err.message }))
+              }
+            })
+          })
+
+          server.middlewares.use('/api/generate-card', (req, res) => {
+            if (req.method !== 'POST') {
+              res.writeHead(405)
+              res.end('Method Not Allowed')
+              return
+            }
+            let body = ''
+            req.on('data', chunk => (body += chunk))
+            req.on('end', async () => {
+              try {
+                const { word } = JSON.parse(body)
+                const { generateCard } = await import('./api/_lib/generateCardCore.js')
+                const card = await generateCard(word)
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify(card))
+              } catch (err) {
+                console.error('[api/generate-card dev]', err)
                 res.writeHead(500, { 'Content-Type': 'application/json' })
                 res.end(JSON.stringify({ error: err.message }))
               }

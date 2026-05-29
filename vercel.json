@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/flashcards", "destination": "/flashcards.html" },
+    { "source": "/((?!api/|flashcards).*)", "destination": "/index.html" }
   ]
 }

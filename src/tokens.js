@@ -1,0 +1,34 @@
+// Shared Glōssa design tokens. The existing App.jsx / AuthScreen.jsx keep their
+// own inline copies; this module is the shared source for the Cards app.
+
+export const C = {
+  bg: "#F5F0E8",
+  surface: "#FFFFFF",
+  text: "#1A1A1A",
+  soft: "#6E6760",
+  muted: "#A8A09A",
+  green: "#2B5F47",
+  greenLight: "#EAF0EC",
+  greenMid: "#4A8A6A",
+  border: "#DDD6CB",
+  amber: "#B87B2A",
+  amberLight: "#FDF3E0",
+  correct: "#2B5F47",
+  wrong: "#B04040",
+  wrongLight: "#FAEAEA",
+  correctLight: "#EAF4EE",
+};
+
+export const serif = "'Lora', Georgia, serif";
+export const sans = "'DM Sans', system-ui, sans-serif";
+
+// Injects the Google Fonts link once (mirrors App.jsx's approach).
+export function ensureFonts() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("glossa-fonts")) return;
+  const el = document.createElement("style");
+  el.id = "glossa-fonts";
+  el.textContent =
+    "@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');";
+  document.head.appendChild(el);
+}
