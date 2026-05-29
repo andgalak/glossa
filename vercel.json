@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "redirects": [
-    { "source": "/((?!api/|assets/|flashcards).*)", "destination": "/flashcards", "permanent": false }
+    { "source": "/((?!api/|assets/|flashcards|.*\\.).*)", "destination": "/flashcards", "permanent": false }
   ],
   "rewrites": [
     { "source": "/flashcards", "destination": "/flashcards.html" },

@@ -85,11 +85,11 @@ function DeckRow({ card, onDelete, onSave }) {
   if (editing) {
     return (
       <div style={{ background: C.surface, border: `1.5px solid ${C.green}`, borderRadius: 12, padding: "1rem 1.1rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.7rem", marginBottom: "0.7rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.7rem", marginBottom: "0.7rem" }}>
           <Field label="Greek" value={draft.greek ?? ""} onChange={v => set("greek", v)} />
           <Field label="English" value={draft.english ?? ""} onChange={v => set("english", v)} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.7rem", marginBottom: "0.7rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.7rem", marginBottom: "0.7rem" }}>
           <label style={{ display: "block" }}>
             <span style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: C.muted, marginBottom: "0.25rem" }}>Part of speech</span>
             <select value={draft.part_of_speech ?? ""} onChange={e => set("part_of_speech", e.target.value)}

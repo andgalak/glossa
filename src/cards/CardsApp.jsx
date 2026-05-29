@@ -92,7 +92,7 @@ export default function CardsApp() {
       )}
 
       {/* Standalone header */}
-      <header style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+      <header style={{ borderBottom: `1px solid ${C.border}`, background: C.surface, paddingTop: "env(safe-area-inset-top)" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "1.1rem 1.5rem", display: "flex", alignItems: "baseline", gap: "0.6rem" }}>
           <span style={{ fontFamily: serif, fontSize: "1.4rem", fontWeight: 600, color: C.green, letterSpacing: "-0.02em" }}>Glōssa</span>
           <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: C.amber, paddingBottom: "0.1rem" }}>Cards</span>
@@ -124,7 +124,7 @@ export default function CardsApp() {
         </nav>
       </header>
 
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {cards === null ? (
           <div style={{ maxWidth: 720, margin: "0 auto", padding: "4rem 1.5rem", color: C.soft, fontSize: "0.9rem" }}>Loading…</div>
         ) : tab === "add" ? (

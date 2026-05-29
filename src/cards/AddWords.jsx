@@ -162,11 +162,11 @@ function CardRow({ row, onPatch, onRemove, onMarkUsable }) {
 
       {isPending ? null : (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.7rem", marginBottom: "0.7rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.7rem", marginBottom: "0.7rem" }}>
             <Field label="Greek" value={row.greek} onChange={v => onPatch("greek", v)} placeholder="η θάλασσα" />
             <Field label="English" value={row.english} onChange={v => onPatch("english", v)} placeholder="the sea" />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.7rem", marginBottom: "0.7rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.7rem", marginBottom: "0.7rem" }}>
             <label style={{ display: "block" }}>
               <span style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: C.muted, marginBottom: "0.25rem" }}>Part of speech</span>
               <select
