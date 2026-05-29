@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase.js";
 import { sm2 } from "./lib/sm2.js";
-import AuthScreen from "./components/AuthScreen.jsx";
+import { sessionId } from "./lib/session.js";
 
 // ── Fonts ────────────────────────────────────────────────────────────────────
 const fontStyle = document.createElement("style");
@@ -445,7 +445,7 @@ function LevelPicker({ onSelect, onBack }) {
   );
 }
 
-function ChapterMap({ chapters, level, lang, user, onSelect, onSignOut }) {
+function ChapterMap({ chapters, level, lang, onSelect }) {
   const visibleChapters = chapters.filter(ch => {
     if (level?.code === "A1") return ch.id >= 1 && ch.id <= 8;
     if (level?.code === "A2") return ch.id >= 9 && ch.id <= 16;
@@ -454,35 +454,22 @@ function ChapterMap({ chapters, level, lang, user, onSelect, onSignOut }) {
   });
   return (
     <div style={{ maxWidth: 580, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
-        <div>
-          {user?.user_metadata?.first_name && (
-            <div style={{ fontSize: "0.78rem", color: C.muted, marginBottom: "0.2rem" }}>Welcome back, {user.user_metadata.first_name}</div>
-          )}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.3rem" }}>
-            <span style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, color: C.text }}>{lang?.name}</span>
-            <span style={{
-              background: C.greenLight,
-              color: C.green,
-              fontWeight: 700,
-              fontSize: "0.82rem",
-              padding: "0.2rem 0.65rem",
-              borderRadius: 6,
-              letterSpacing: "0.03em",
-            }}>
-              {level?.code}
-            </span>
-          </div>
-          <div style={{ color: C.soft, fontSize: "0.875rem" }}>{level?.desc}</div>
+      <div style={{ marginBottom: "2rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.3rem" }}>
+          <span style={{ fontFamily: serif, fontSize: "1.6rem", fontWeight: 600, color: C.text }}>{lang?.name}</span>
+          <span style={{
+            background: C.greenLight,
+            color: C.green,
+            fontWeight: 700,
+            fontSize: "0.82rem",
+            padding: "0.2rem 0.65rem",
+            borderRadius: 6,
+            letterSpacing: "0.03em",
+          }}>
+            {level?.code}
+          </span>
         </div>
-        <button
-          onClick={onSignOut}
-          style={{ background: "none", border: "none", color: C.muted, fontSize: "0.78rem", cursor: "pointer", fontFamily: sans, paddingTop: "0.35rem" }}
-          onMouseEnter={e => (e.currentTarget.style.color = C.soft)}
-          onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
-        >
-          Sign out
-        </button>
+        <div style={{ color: C.soft, fontSize: "0.875rem" }}>{level?.desc}</div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
@@ -1123,32 +1110,10 @@ export default function App() {
   const [sentences, setSentences] = useState([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState({}); // keyed by chapter_id
-  const [user, setUser] = useState(undefined); // undefined = checking, null = signed out
+  const [sid] = useState(sessionId); // anonymous per-device id (no login)
 
-  // Auth: check existing session on mount, then subscribe to changes
+  // Restore lang/level from localStorage on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session) {
-        setFlashcards(null);
-        setProgress({});
-        setSentences([]);
-        setLang(null);
-        setLevel(null);
-        setScreen("welcome");
-        localStorage.removeItem("glossa_lang");
-        localStorage.removeItem("glossa_level");
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Restore session from localStorage after auth resolves
-  useEffect(() => {
-    if (user === undefined || user === null) return;
     try {
       const savedLang = localStorage.getItem("glossa_lang");
       const savedLevel = localStorage.getItem("glossa_level");
@@ -1158,7 +1123,7 @@ export default function App() {
         setScreen("chapters");
       }
     } catch {}
-  }, [user?.id]);
+  }, []);
 
   // Persist lang/level to localStorage whenever they change
   useEffect(() => { if (lang) localStorage.setItem("glossa_lang", JSON.stringify(lang)); }, [lang]);
@@ -1166,28 +1131,27 @@ export default function App() {
 
   const s = sentences[sIdx % Math.max(sentences.length, 1)];
 
-  // Load flashcards whenever the authenticated user changes
+  // Load flashcards for this device on mount
   useEffect(() => {
-    if (!user?.id) return;
     supabase
       .from("flashcards")
       .select("*")
-      .eq("session_id", user.id)
+      .eq("session_id", sid)
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
         if (error) { console.warn("[flashcards] load error:", error.message); setFlashcards([]); return; }
         setFlashcards(data ?? []);
       });
-  }, [user?.id]);
+  }, [sid]);
 
   // Load progress from Supabase whenever the chapter map is shown
   useEffect(() => {
-    if (screen !== "chapters" || !user?.id) return;
+    if (screen !== "chapters") return;
     const levelCode = level?.code ?? "A1";
     supabase
       .from("user_progress")
       .select("chapter_id, completed_sentences, total_sentences")
-      .eq("session_id", user.id)
+      .eq("session_id", sid)
       .eq("level", levelCode)
       .then(({ data, error }) => {
         if (error) { console.warn("[progress] load error:", error.message); return; }
@@ -1195,7 +1159,7 @@ export default function App() {
         (data ?? []).forEach(r => { map[r.chapter_id] = { done: r.completed_sentences, total: r.total_sentences }; });
         setProgress(map);
       });
-  }, [screen, level, user?.id]);
+  }, [screen, level, sid]);
 
   // Greek-aware normalization: strip accents, collapse homophones
   // Handles: accent marks, ω/ο, η/ι/υ/οι/ει (all sound like "i"), final σ/ς
@@ -1249,7 +1213,7 @@ export default function App() {
       return;
     }
     const newCard = {
-      session_id: user.id,
+      session_id: sid,
       word,
       wordTranslation: "…",
       contextGreek: `${s.before} ${word} ${s.after}`.trim(),
@@ -1288,7 +1252,7 @@ export default function App() {
         supabase
           .from("flashcards")
           .update({ wordTranslation })
-          .eq("session_id", user.id)
+          .eq("session_id", sid)
           .eq("word", word)
           .then(({ error }) => {
             if (error) console.warn("[flashcards] wordTranslation update error:", error.message);
@@ -1358,7 +1322,7 @@ export default function App() {
       .from("user_progress")
       .upsert(
         {
-          session_id: user.id,
+          session_id: sid,
           chapter_id: chapterId,
           level: levelCode,
           completed_sentences: completedCount,
@@ -1386,10 +1350,6 @@ export default function App() {
       setScreen("complete");
     }
   }
-
-  // Auth guard
-  if (user === undefined) return null; // still checking session
-  if (user === null) return <AuthScreen />;
 
   // Pre-chapter screens (no nav)
   if (screen === "welcome") return <Welcome onStart={() => setScreen("language")} />;
@@ -1475,9 +1435,7 @@ export default function App() {
             }))}
             level={level}
             lang={lang}
-            user={user}
             onSelect={goToExercise}
-            onSignOut={() => supabase.auth.signOut()}
           />
         )}
         {tab === "home" && screen === "complete" && (
@@ -1533,7 +1491,7 @@ export default function App() {
               supabase
                 .from("flashcards")
                 .delete()
-                .eq("session_id", user.id)
+                .eq("session_id", sid)
                 .eq("word", word)
                 .then(({ error }) => { if (error) console.warn("[flashcards] delete error:", error.message); });
             }}
@@ -1543,7 +1501,7 @@ export default function App() {
               supabase
                 .from("flashcards")
                 .update(updates)
-                .eq("session_id", user.id)
+                .eq("session_id", sid)
                 .eq("word", card.word)
                 .then(({ error }) => { if (error) console.warn("[flashcards] rate error:", error.message); });
             }}
