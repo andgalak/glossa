@@ -4,13 +4,26 @@ import { Btn } from "./ui.jsx";
 import { sm2 } from "../lib/sm2.js";
 import { updateCard } from "./cards.js";
 
-function getDueCards(cards) {
+const BATCH_SIZE = 10;
+
+// Cards due now, hardest / most-overdue first, capped to one batch.
+// SM-2 handles long-term spacing (easy cards get longer intervals, so they
+// come due far less often); this just orders and caps a single session.
+function dueBatch(cards) {
   const now = new Date();
-  const due = cards.filter(c => !c.retired && new Date(c.due_date) <= now);
-  if (due.length > 0) return due;
-  const active = cards.filter(c => !c.retired);
-  if (active.length === 0) return [];
-  return [active.sort((a, b) => new Date(a.due_date) - new Date(b.due_date))[0]];
+  return cards
+    .filter(c => !c.retired && new Date(c.due_date) <= now)
+    .sort((a, b) => {
+      const d = new Date(a.due_date) - new Date(b.due_date);
+      if (d !== 0) return d; // most overdue first
+      return (a.ease_factor ?? 2.5) - (b.ease_factor ?? 2.5); // then hardest
+    })
+    .slice(0, BATCH_SIZE);
+}
+
+function dueCount(cards) {
+  const now = new Date();
+  return cards.filter(c => !c.retired && new Date(c.due_date) <= now).length;
 }
 
 const RATINGS = [
@@ -21,7 +34,7 @@ const RATINGS = [
 
 export default function Review({ cards, setCards, onDone }) {
   const [dir, setDir] = useState("en2gr"); // en2gr (default) | gr2en
-  const [queue] = useState(() => getDueCards(cards));
+  const [queue, setQueue] = useState(() => dueBatch(cards));
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
@@ -35,6 +48,12 @@ export default function Review({ cards, setCards, onDone }) {
     setFlipped(false);
   }
 
+  function nextBatch() {
+    setQueue(dueBatch(cards));
+    setIdx(0);
+    setFlipped(false);
+  }
+
   if (active.length === 0) {
     return (
       <Empty title="Nothing to review" body="Add some words, then come back to study them." onDone={onDone} />
@@ -42,6 +61,18 @@ export default function Review({ cards, setCards, onDone }) {
   }
 
   if (idx >= queue.length) {
+    // The just-rated cards now have future due dates, so `cards` reflects what is left.
+    const remaining = dueCount(cards);
+    if (remaining > 0) {
+      return (
+        <Empty
+          title="Batch done!"
+          body={`${remaining} card${remaining === 1 ? "" : "s"} still due today.`}
+          onDone={onDone}
+          action={{ label: `Next ${Math.min(BATCH_SIZE, remaining)}`, onClick: nextBatch }}
+        />
+      );
+    }
     return (
       <Empty title="All caught up!" body="No more cards due right now. Come back later." onDone={onDone} />
     );
@@ -128,12 +159,15 @@ export default function Review({ cards, setCards, onDone }) {
   );
 }
 
-function Empty({ title, body, onDone }) {
+function Empty({ title, body, onDone, action }) {
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "5rem 1.5rem", textAlign: "center" }}>
       <div style={{ fontFamily: serif, fontSize: "1.4rem", color: C.green, marginBottom: "0.5rem" }}>{title}</div>
       <div style={{ color: C.soft, fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "2rem" }}>{body}</div>
-      <Btn variant="ghost" onClick={onDone}>Back to deck</Btn>
+      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+        {action && <Btn onClick={action.onClick}>{action.label}</Btn>}
+        <Btn variant="ghost" onClick={onDone}>Back to deck</Btn>
+      </div>
     </div>
   );
 }

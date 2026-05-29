@@ -1,22 +1,10 @@
 import { supabase } from "../lib/supabase.js";
 
-const ANON_KEY = "glossa_cards_anon_id";
-
-// A stable per-device id stored in localStorage, used as vocab_cards.user_id
-// until real auth is wired in. crypto.randomUUID() yields a valid uuid.
-export function anonId() {
-  let id = localStorage.getItem(ANON_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(ANON_KEY, id);
-  }
-  return id;
-}
-
 // Maps a generation result (camelCase from the API) + edits to DB column names.
-export function toRow(card) {
+// userId is the authenticated Supabase user id (vocab_cards.user_id).
+export function toRow(card, userId) {
   return {
-    user_id: anonId(),
+    user_id: userId,
     english: card.english ?? "",
     greek: card.greek ?? "",
     part_of_speech: card.partOfSpeech ?? "",
@@ -28,11 +16,11 @@ export function toRow(card) {
   };
 }
 
-export async function loadCards() {
+export async function loadCards(userId) {
   const { data, error } = await supabase
     .from("vocab_cards")
     .select("*")
-    .eq("user_id", anonId())
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
   if (error) {
     console.warn("[vocab_cards] load error:", error.message);
@@ -41,8 +29,8 @@ export async function loadCards() {
   return data ?? [];
 }
 
-export async function insertCards(cards) {
-  const rows = cards.map(toRow);
+export async function insertCards(cards, userId) {
+  const rows = cards.map(c => toRow(c, userId));
   const { data, error } = await supabase
     .from("vocab_cards")
     .insert(rows)

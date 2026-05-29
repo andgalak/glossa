@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { C, serif, sans, ensureFonts } from "../tokens.js";
+import { supabase } from "../lib/supabase.js";
 import { loadCards } from "./cards.js";
 import AddWords from "./AddWords.jsx";
 import Deck from "./Deck.jsx";
 import Review from "./Review.jsx";
+import CardsAuth from "./CardsAuth.jsx";
 
 ensureFonts();
 
@@ -14,18 +16,41 @@ const TABS = [
 ];
 
 export default function CardsApp() {
+  const [user, setUser] = useState(undefined); // undefined = loading, null = signed out
   const [tab, setTab] = useState("add");
   const [cards, setCards] = useState(null); // null = loading
   const [toast, setToast] = useState(null);
 
+  // Track the Supabase auth session.
   useEffect(() => {
-    loadCards().then(setCards);
+    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Load this user's deck once signed in; clear it on sign out.
+  useEffect(() => {
+    if (!user?.id) { setCards(null); return; }
+    setCards(null);
+    loadCards(user.id).then(setCards);
+  }, [user?.id]);
 
   function fireToast(msg) {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   }
+
+  if (user === undefined) {
+    return (
+      <div style={{ fontFamily: sans, minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", color: C.soft, fontSize: "0.9rem" }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (user === null) return <CardsAuth />;
 
   const list = cards ?? [];
   const dueCount = list.filter(c => !c.retired && new Date(c.due_date) <= new Date()).length;
@@ -48,6 +73,14 @@ export default function CardsApp() {
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "1.1rem 1.5rem", display: "flex", alignItems: "baseline", gap: "0.6rem" }}>
           <span style={{ fontFamily: serif, fontSize: "1.4rem", fontWeight: 600, color: C.green, letterSpacing: "-0.02em" }}>Glōssa</span>
           <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: C.amber, paddingBottom: "0.1rem" }}>Cards</span>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: sans, fontSize: "0.78rem", color: C.muted }}
+            onMouseEnter={e => (e.currentTarget.style.color = C.soft)}
+            onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+          >
+            Sign out
+          </button>
         </div>
         <nav style={{ maxWidth: 720, margin: "0 auto", padding: "0 1.5rem", display: "flex", gap: "1.5rem" }}>
           {TABS.map(t => (
@@ -73,6 +106,7 @@ export default function CardsApp() {
           <div style={{ maxWidth: 720, margin: "0 auto", padding: "4rem 1.5rem", color: C.soft, fontSize: "0.9rem" }}>Loading…</div>
         ) : tab === "add" ? (
           <AddWords
+            userId={user.id}
             onSaved={(saved) => { setCards(prev => [...(prev ?? []), ...saved]); fireToast(`${saved.length} card${saved.length === 1 ? "" : "s"} saved`); setTab("deck"); }}
             onError={fireToast}
           />
