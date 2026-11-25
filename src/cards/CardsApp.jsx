@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { C, serif, sans, ensureFonts } from "../tokens.js";
 import { supabase } from "../lib/supabase.js";
 import { loadCards, claimAnonCards } from "./cards.js";
@@ -6,6 +6,9 @@ import AddWords from "./AddWords.jsx";
 import Deck from "./Deck.jsx";
 import Review from "./Review.jsx";
 import CardsAuth, { SetPassword } from "./CardsAuth.jsx";
+
+// Lazy: pulls in pdf.js (heavy) only when the Read tab is first opened.
+const Reader = lazy(() => import("../reader/Reader.jsx"));
 
 ensureFonts();
 
@@ -21,6 +24,7 @@ const TABS = [
   { key: "add", label: "Add words" },
   { key: "deck", label: "Deck" },
   { key: "review", label: "Review" },
+  { key: "read", label: "Read" },
 ];
 
 export default function CardsApp() {
@@ -105,7 +109,7 @@ export default function CardsApp() {
             Sign out
           </button>
         </div>
-        <nav style={{ maxWidth: 720, margin: "0 auto", padding: "0 1.5rem", display: "flex", gap: "1.5rem" }}>
+        <nav style={{ maxWidth: 720, margin: "0 auto", padding: "0 1.5rem", display: "flex", gap: "1.25rem", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           {TABS.map(t => (
             <button
               key={t.key}
@@ -116,6 +120,7 @@ export default function CardsApp() {
                 color: tab === t.key ? C.green : C.muted,
                 padding: "0.6rem 0", marginBottom: "-1px",
                 borderBottom: tab === t.key ? `2px solid ${C.green}` : "2px solid transparent",
+                whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
               {t.label}{t.key === "review" && dueCount > 0 ? ` (${dueCount})` : ""}
@@ -135,8 +140,16 @@ export default function CardsApp() {
           />
         ) : tab === "deck" ? (
           <Deck cards={list} setCards={setCards} fireToast={fireToast} />
-        ) : (
+        ) : tab === "review" ? (
           <Review cards={list} setCards={setCards} onDone={() => setTab("deck")} />
+        ) : (
+          <Suspense fallback={<div style={{ maxWidth: 720, margin: "0 auto", padding: "4rem 1.5rem", color: C.soft, fontSize: "0.9rem" }}>Loading…</div>}>
+            <Reader
+              userId={user.id}
+              fireToast={fireToast}
+              onCardSaved={(saved) => saved && setCards(prev => [...(prev ?? []), saved])}
+            />
+          </Suspense>
         )}
       </main>
     </div>

@@ -96,6 +96,57 @@ export default defineConfig(({ mode }) => {
               }
             })
           })
+
+          server.middlewares.use('/api/translate-sentence', (req, res) => {
+            if (req.method !== 'POST') {
+              res.writeHead(405)
+              res.end('Method Not Allowed')
+              return
+            }
+            let body = ''
+            req.on('data', chunk => (body += chunk))
+            req.on('end', async () => {
+              try {
+                const { word, sentence } = JSON.parse(body)
+                const { translateInContext } = await import('./api/_lib/translateSentenceCore.js')
+                const out = await translateInContext(word, sentence)
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify(out))
+              } catch (err) {
+                console.error('[api/translate-sentence dev]', err)
+                res.writeHead(500, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: err.message }))
+              }
+            })
+          })
+
+          server.middlewares.use('/api/tts', (req, res) => {
+            if (req.method !== 'POST') {
+              res.writeHead(405)
+              res.end('Method Not Allowed')
+              return
+            }
+            let body = ''
+            req.on('data', chunk => (body += chunk))
+            req.on('end', async () => {
+              try {
+                const { text, voice } = JSON.parse(body)
+                const { synthesize } = await import('./api/_lib/ttsCore.js')
+                const out = await synthesize(text, voice)
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify(out))
+              } catch (err) {
+                if (err.code === 'AZURE_NOT_CONFIGURED') {
+                  res.writeHead(503, { 'Content-Type': 'application/json' })
+                  res.end(JSON.stringify({ error: 'azure_not_configured' }))
+                  return
+                }
+                console.error('[api/tts dev]', err)
+                res.writeHead(500, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: err.message }))
+              }
+            })
+          })
         },
       },
     ],
